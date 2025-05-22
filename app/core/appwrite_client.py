@@ -21,12 +21,12 @@ def make_client(authenticated=True):
 
 # Initialize default clients
 client = make_client()
-account = Account(client)
-db = Databases(client)
+appwrite_account = Account(client)
+appwrite_db = Databases(client)
 
 def get_tasks():
     """Fetch all tasks from Appwrite database"""
-    return db.list_documents(
+    return appwrite_db.list_documents(
         settings.DATABASE_ID, 
         settings.TASKS_COLLECTION_ID
     )["documents"]
@@ -38,7 +38,7 @@ def get_today_checkins(uid: str):
         Query.equal("user_id", uid), 
         Query.equal("date", today)
     ]
-    res = db.list_documents(
+    res = appwrite_db.list_documents(
         settings.DATABASE_ID, 
         settings.CHECKINS_COLLECTION_ID, 
         queries=q
@@ -53,18 +53,18 @@ def save_checkin(uid: str, tid: str, done: bool, note: str):
         Query.equal("task_id", tid),
         Query.equal("date", today)
     ]
-    found = db.list_documents(settings.DATABASE_ID, settings.CHECKINS_COLLECTION_ID, queries=q)
+    found = appwrite_db.list_documents(settings.DATABASE_ID, settings.CHECKINS_COLLECTION_ID, queries=q)
     data = dict(task_id=tid, user_id=uid, date=today, done=done, note=note)
     
     if found["total"]:
-        db.update_document(
+        appwrite_db.update_document(
             settings.DATABASE_ID,
             settings.CHECKINS_COLLECTION_ID,
             found["documents"][0]["$id"],
             data=data
         )
     else:
-        db.create_document(
+        appwrite_db.create_document(
             settings.DATABASE_ID,
             settings.CHECKINS_COLLECTION_ID,
             ID.unique(),

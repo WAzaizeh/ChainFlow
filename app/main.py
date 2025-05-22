@@ -31,11 +31,10 @@ import datetime, json
 import urllib.parse
 from appwrite.query import Query
 from core.app import app, rt
-import routes
+import routes # necessary for route registration
 from core.config import settings
 from core.appwrite_client import (
     make_client,
-    account,
     get_tasks,
     get_today_checkins,
     save_checkin
