@@ -1,13 +1,14 @@
 from fasthtml.common import *
-from core.config import settings
 import urllib.parse
-from core.appwrite_client import make_client, appwrite_account
+from core.config import settings
+from appwrite.services.account import Account
+from core.appwrite_client import make_client
 
 def google_oauth_url() -> str:
-    """Build the Google OAuth2 redirect URL"""
+    """Build the Google OAuth2 redirect URL for Appwrite OAuth flow"""
     success = urllib.parse.quote(settings.oauth_success_url, safe="")
     failure = urllib.parse.quote(settings.oauth_failure_url, safe="")
-    
+
     scope_params = "&".join(
         f"scopes[]={urllib.parse.quote(s, safe='')}" 
         for s in settings.OAUTH_SCOPES
@@ -21,11 +22,11 @@ def google_oauth_url() -> str:
         f"&{scope_params}"
     )
 
-async def handle_oauth_callback(jwt_token: str) -> dict:
-    """Handle OAuth callback and return user data"""
+async def verify_oauth_token(jwt_token: str) -> dict:
+    """Verify OAuth JWT token and return user data"""
     if not jwt_token:
         raise ValueError("No JWT token provided")
         
     user_client = make_client(authenticated=False).set_jwt(jwt_token)
-    user = appwrite_account(user_client).get()
+    user = Account(user_client).get()
     return {"id": user["$id"], "email": user["email"]}
