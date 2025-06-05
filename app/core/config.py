@@ -16,8 +16,6 @@ class Settings:
     
     # Database settings
     DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID")
-    TASKS_COLLECTION_ID = os.getenv("APPWRITE_TASKS_COLLECTION_ID")
-    CHECKINS_COLLECTION_ID = os.getenv("APPWRITE_CHECKINS_COLLECTION_ID")
     
     # Auth settings
     OAUTH_SCOPES = ["openid", "email"]

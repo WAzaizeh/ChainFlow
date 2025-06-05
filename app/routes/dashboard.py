@@ -1,47 +1,33 @@
 from core.app import app, rt
 from fasthtml.common import *
 from core.appwrite_client import (
-    make_client,
+    appwrite_db,
     get_tasks,
-    get_today_checkins,
+    get_task_checkins,
     save_checkin
 )
-import json
+from layout.tasks import tasks_container
 
 @rt("/")
 def home(req):
-    user   = req.scope["user"]
-    tasks  = get_tasks()
-    checks = get_today_checkins(user["id"])
+    user = req.scope["user"]
+    tasks = get_tasks(appwrite_db)
 
-    # Add user info section at the top
-    user_info = Div(cls="bg-gray-100 p-4 mb-6 rounded shadow")(
-        H2("User Information", cls="text-xl mb-2"),
+    user_info = Div(cls="bg-white p-6 mb-6 rounded-lg shadow-sm")(
+        H2("User Information", cls="text-xl font-semibold mb-4"),
         P(f"Email: {user['email']}", cls="text-gray-700"),
-        P(f"User ID: {user['id']}", cls="text-gray-700"),
-        Hr(cls="my-4")
+        P(f"User ID: {user['id']}", cls="text-gray-500 text-sm")
     )
-
-    def row(t):
-        chk = checks.get(t["$id"], {})
-        task_name = t.get("name", "")
-        if isinstance(task_name, str):
-            task_name = json.loads(task_name)["name"]
-        return Li(cls="flex items-center gap-2 py-2")(
-            Input(type="checkbox", name="done", checked=chk.get("done", False),
-                  hx_post="/update", hx_include="closest li", cls="mr-2"),
-            Span(task_name, cls="flex-1"),
-            Input(type="text", name="note", value=chk.get("note", ""), placeholder="Note…",
-                  hx_post="/update", hx_include="closest li", cls="flex-1"),
-            Input(type="hidden", name="task_id", value=t["$id"]),
-        )
 
     return Titled(
         "Today's Tasks",
-        Div(cls="container mx-auto p-4")(
+        Div(cls="container mx-auto p-4 max-w-4xl")(
             user_info,
-            H1("Today's Tasks", cls="text-2xl mb-4"),
-            Ul(*[row(t) for t in tasks], cls="list-none p-0")
+            H1("Today's Tasks", cls="text-2xl font-bold mb-6"),
+            Ul(
+                *[tasks_container(t) for t in tasks],
+                cls="list-none p-0"
+            )
         )
     )
 
@@ -51,5 +37,5 @@ async def update(req, session):
     if not user:
         return Response(status_code=403)
     data = await req.form()
-    save_checkin(uid=user["id"], tid=data["task_id"], done=data.get("done") == "on", note=data.get("note", ""))
+    save_checkin(appwrite_db, uid=user["id"], tid=data["task_id"], done=data.get("done") == "on", note=data.get("note", ""))
     return Response(status_code=204)
