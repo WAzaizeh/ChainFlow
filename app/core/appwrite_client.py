@@ -85,10 +85,12 @@ def get_subtasks(appwrite_db, parent_id: str) -> list[SubTask]:
     # Convert to Subtask model
     subtasks = [
         SubTask(
-            **{
-                "id": subtask["$id"],  # Convert $id to id
-                **{k: v for k, v in subtask.items() if k != "$id"}  # Include all other fields
-            }
+            id = subtask["$id"],  # Convert $id to id
+            parent_id = subtask["parent_id"],
+            title = subtask.get("title", ""),
+            completed = subtask.get("completed", False),
+            completed_at = subtask.get("completed_at"),
+            order = subtask.get("order", 0)
         ) for subtask in subtasks["documents"]
         ]
     return subtasks
@@ -121,62 +123,94 @@ def get_task(appwrite_db, task_id: str) -> Task:
     task = appwrite_db.get_document(
         settings.DATABASE_ID,
         "tasks",
-        queries=[Query.equal("$id", task_id)]
+        task_id
     )
     if not task:
         return None
     # Fetch subtasks
     task["subtasks"] = get_subtasks(appwrite_db, task_id)
     # Convert to Task model
-    return Task(**task)
+    return Task(
+        id=task["$id"],  # Convert $id to id
+        title=task.get("title", ""),
+        completed=task.get("completed", False),
+        completed_at=task.get("completed_at"),
+        notes=task.get("notes", ""),
+        subtasks=task.get("subtasks", [])
+        )
+
+def get_subtask(appwrite_db, subtask_id: str) -> SubTask:
+    """Get a specific subtask by ID"""
+    subtask = appwrite_db.get_document(
+        settings.DATABASE_ID,
+        "subtasks",
+        subtask_id
+    )
+    if not subtask:
+        return None
+    # Convert to SubTask model
+    return SubTask(
+        id = subtask["$id"],  # Convert $id to id
+        parent_id = subtask["parent_id"],
+        title = subtask.get("title", ""),
+        completed = subtask.get("completed", False),
+        completed_at = subtask.get("completed_at"),
+        order = subtask.get("order", 0)
+    )
 
 async def update_task_status(appwrite_db, user_id: str, task: Task, nested: bool = False) -> None:
     """Update task status by creating a checkin and updating task state"""
-    # 1. Create checkin
+    # 1. Create checkin, even if nested
     checkin = Checkin(
         user_id=user_id,
         task_id=task.id,
         completed=task.completed,
         note=task.notes,
-        updated_at=datetime.now()
+        completed_at=datetime.now()
     )
-    # Generate composite ID for checkin
-    checkin.create_id()
-    checkin = save_checkin(appwrite_db, checkin)
+    save_checkin(appwrite_db, checkin)
     
-    # 2. Update task status 
+    # 2. Update task
+    changes = {}
+    if task.complete:
+        changes["completed"] = task.completed
+        changes["completed_at"] = task.completed_at
+    elif task.notes:
+        changes["notes"] = task.notes
     appwrite_db.update_document(
         settings.DATABASE_ID,
         "tasks",
         task.id,
-        data={
-            "completed": task.completed,
-            "completed_at": task.completed_at,
-            "notes": task.notes
-        }
+        data=changes
     )
     
-    # 3. Update all subtasks
+    # 3. Update subtasks if needed
+    updated_subtasks = []
     if not nested:
         for subtask in task.subtasks:
-            subtask.completed = task.completed
-            subtask.completed_at = task.completed_at
-            update_subtask_status(appwrite_db, subtask, nested=True) # nested update doesn't create a new checkin
+            if subtask.completed != task.completed:
+                subtask.completed = task.completed
+                subtask.completed_at = task.completed_at
+                await update_subtask_status(appwrite_db, user_id, subtask, nested=True) # nested update doesn't create a new checkin
+                updated_subtasks.append(subtask)
     
+    return {
+        "task": task,
+        "updated_subtasks": updated_subtasks
+    }
 
-async def update_subtask_status(appwrite_db, subtask: SubTask, nested: bool = False) -> None:
+async def update_subtask_status(appwrite_db, user_id: str, subtask: SubTask, nested: bool = False) -> None:
     """Update subtask status and create a checkin if not nested"""
+    print(f"############\n{subtask=}\n############")
     # 1. Create checkin
     if not nested:
         checkin = Checkin(
-            user_id=subtask.user_id,
+            user_id=user_id,
             task_id=subtask.parent_id,
             completed=subtask.completed,
-            note=subtask.note,
+            completed_at=subtask.completed_at,
             subtask_id=subtask.id,
-            updated_at=datetime.now()
         )
-        checkin.create_id()
         save_checkin(appwrite_db, checkin)
     
     # 2. Update subtask
@@ -190,7 +224,7 @@ async def update_subtask_status(appwrite_db, subtask: SubTask, nested: bool = Fa
         }
     )
 
-    # 3. If not nested, check parent task status and update parent task
+    # 3. Check if parent task needs update
     if not nested:
         task = get_task(appwrite_db, subtask.parent_id)
         if not task:
@@ -198,7 +232,20 @@ async def update_subtask_status(appwrite_db, subtask: SubTask, nested: bool = Fa
         
         # Check if all subtasks complete and update task status
         if all(st.completed for st in task.subtasks):
-            update_task_status(appwrite_db, task, nested=True) 
+            task.completed = subtask.completed
+            task.completed_at = subtask.completed_at
+            await update_task_status(appwrite_db, user_id, task, nested=True)
+            return {
+                "subtask": subtask,
+                "task_updated": True,
+                "task": task
+            }
+    
+    # If not all subtasks complete, just return the subtask
+    return {
+        "subtask": subtask,
+        "task_updated": False
+    }
 
 def get_user_checkins(appwrite_db, uid: str, date: str = None) -> list[Checkin]:
     """Get checkins for a specific user, defaulting to today if no date provided"""
@@ -230,9 +277,21 @@ def get_task_checkins(appwrite_db, task_id: str, date: str = None) -> list[Check
 
 def save_checkin(appwrite_db, checkin: Checkin) -> None:
     """Save checkin for task or subtask"""
-    appwrite_db.create_document(
+    checkin.completed_at = checkin.completed_at.isoformat() if isinstance(checkin.completed_at, datetime) else checkin.completed_at
+    checkin_dict = {k: v for k, v in checkin.__dict__.items() if k != 'id'}
+    saved_checkin = appwrite_db.create_document(
         settings.DATABASE_ID,
         "checkins",
-        checkin.id,
-        checkin.__dict__
+        ID.unique(),
+        checkin_dict
+        )
+    print(f"Checkin saved: {saved_checkin}")
+    return Checkin(
+            id = saved_checkin["$id"],
+            user_id = saved_checkin["user_id"],
+            task_id = saved_checkin["task_id"],
+            completed = saved_checkin["completed"],
+            note = saved_checkin.get("note", ""),
+            subtask_id = saved_checkin.get("subtask_id", None),
+            completed_at = datetime.fromisoformat(saved_checkin["completed_at"]) if saved_checkin.get("completed_at") else None
         )
