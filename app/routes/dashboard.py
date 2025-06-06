@@ -12,9 +12,15 @@ from core.appwrite_client import (
 from layout.tasks import tasks_container
 from datetime import datetime
 from models.checkins import Checkin
-from layout.tasks import subtask_container, task_checkbox
+from layout.tasks import (
+    task_checkbox,
+    subtask_checkbox,
+    task_note,
+    subtask_container
+)
+import asyncio
 
-@rt("/")
+@rt("/tasks")
 def home(req):
     user = req.scope["user"]
     tasks = get_tasks(appwrite_db)
@@ -90,3 +96,57 @@ async def update(req, session):
             task_checkbox(result["task"]),
             *[Div(st, hx_swap_oob="true") for st in subtasks_html]
         )
+    
+@rt("/tasks/{task_id}/toggle")
+async def toggle_task(req, session, task_id: str):
+    """Handle task completion toggle with optimistic updates"""
+    task = get_task(appwrite_db, task_id)
+    task.completed = not task.completed
+    task.completed_at = datetime.now().isoformat()
+
+    # Create checkin
+    checkin = Checkin(
+        user_id=session["user"]["id"],
+        task_id=task.id,
+        completed=task.completed,
+        completed_at=task.completed_at,
+        note=task.notes
+    )
+    save_checkin(appwrite_db, checkin)
+
+    # Update the task in the database
+    await update_task_status(appwrite_db, session["user"]["id"], task)
+    
+    # Prepare all updates in parallel
+    subtask_updates = []
+    for subtask in task.subtasks:
+        if subtask.completed != task.completed:
+            subtask.completed = task.completed
+            subtask.completed_at = task.completed_at
+            subtask_updates.append(
+                update_subtask_status(appwrite_db, session["user"]["id"], subtask, nested=True)
+            )
+    
+    # Update subtasks in parallel if any
+    if subtask_updates:
+        await asyncio.gather(*subtask_updates)
+    
+    # Return minimal update
+    return tasks_container(task)
+
+@rt("/tasks/subtask/{subtask_id}/toggle")
+async def toggle_subtask(req, session, subtask_id: str):
+    """Handle subtask completion toggle"""
+    subtask = get_subtask(appwrite_db, subtask_id)
+    subtask.completed = not subtask.completed
+    result = await update_subtask_status(appwrite_db, session["user"]["id"], subtask)
+    return subtask_checkbox(result["subtask"])
+
+@rt("/tasks/{task_id}/note")
+async def update_note(req, session, task_id: str):
+    """Handle task note update"""
+    data = await req.form()
+    task = get_task(appwrite_db, task_id)
+    task.notes = data.get("note", "")
+    await update_task_status(appwrite_db, session["user"]["id"], task)
+    return task_note(task)

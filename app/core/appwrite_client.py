@@ -279,13 +279,14 @@ def save_checkin(appwrite_db, checkin: Checkin) -> None:
     """Save checkin for task or subtask"""
     checkin.completed_at = checkin.completed_at.isoformat() if isinstance(checkin.completed_at, datetime) else checkin.completed_at
     checkin_dict = {k: v for k, v in checkin.__dict__.items() if k != 'id'}
+    
     saved_checkin = appwrite_db.create_document(
         settings.DATABASE_ID,
         "checkins",
         ID.unique(),
         checkin_dict
-        )
-    print(f"Checkin saved: {saved_checkin}")
+    )
+    
     return Checkin(
             id = saved_checkin["$id"],
             user_id = saved_checkin["user_id"],
