@@ -1,7 +1,7 @@
 from core.app import app, rt
 from fasthtml.common import *
 from core.appwrite_client import (
-    appwrite_db,
+    get_database,
     get_tasks,
     get_task,
     save_checkin,
@@ -22,6 +22,7 @@ import asyncio
 
 @rt("/tasks")
 def home(req):
+    appwrite_db = get_database()
     user = req.scope["user"]
     tasks = get_tasks(appwrite_db)
 
@@ -45,6 +46,7 @@ def home(req):
 
 @rt("/update")
 async def update(req, session):
+    appwrite_db = get_database()
     user = session.get("user")
     if not user:
         return Response(status_code=403)
@@ -52,7 +54,6 @@ async def update(req, session):
     data = await req.form()
     task_id = data["task_id"]
     subtask_id = data.get("subtask_id")
-    print(f"#########\n{data=}\n############")
     if "done" in data:
         completed = data.get("done") == "on"
         completed_at = datetime.now().isoformat()
@@ -100,6 +101,7 @@ async def update(req, session):
 @rt("/tasks/{task_id}/toggle")
 async def toggle_task(req, session, task_id: str):
     """Handle task completion toggle with optimistic updates"""
+    appwrite_db = get_database()
     task = get_task(appwrite_db, task_id)
     task.completed = not task.completed
     task.completed_at = datetime.now().isoformat()
@@ -137,6 +139,7 @@ async def toggle_task(req, session, task_id: str):
 @rt("/tasks/subtask/{subtask_id}/toggle")
 async def toggle_subtask(req, session, subtask_id: str):
     """Handle subtask completion toggle"""
+    appwrite_db = get_database()
     subtask = get_subtask(appwrite_db, subtask_id)
     subtask.completed = not subtask.completed
     result = await update_subtask_status(appwrite_db, session["user"]["id"], subtask)
@@ -144,6 +147,7 @@ async def toggle_subtask(req, session, subtask_id: str):
 
 @rt("/tasks/{task_id}/note")
 async def update_note(req, session, task_id: str):
+    appwrite_db = get_database()
     """Handle task note update"""
     data = await req.form()
     task = get_task(appwrite_db, task_id)

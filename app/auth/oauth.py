@@ -2,7 +2,7 @@ from fasthtml.common import *
 import urllib.parse
 from core.config import settings
 from appwrite.services.account import Account
-from core.appwrite_client import make_client
+from core.appwrite_client import create_client
 
 def google_oauth_url() -> str:
     """Build the Google OAuth2 redirect URL for Appwrite OAuth flow"""
@@ -27,6 +27,6 @@ async def verify_oauth_token(jwt_token: str) -> dict:
     if not jwt_token:
         raise ValueError("No JWT token provided")
         
-    user_client = make_client(authenticated=False).set_jwt(jwt_token)
+    user_client = create_client(authenticated=False).set_jwt(jwt_token)
     user = Account(user_client).get()
     return {"id": user["$id"], "email": user["email"]}

@@ -5,28 +5,27 @@ from appwrite.id import ID
 from appwrite.query import Query
 from datetime import datetime
 from .config import settings
-from models.task import Task, SubTask
+from models.task import Task, Subtask
 from models.checkins import Checkin
 import uuid
 import json
 
-def make_client(authenticated=True) -> Client:
-    """Creates an Appwrite client instance."""
-    client = (
-        Client()
-        .set_endpoint(settings.APPWRITE_ENDPOINT)
-        .set_project(settings.APPWRITE_PROJECT_ID)
-    )
-    
+def create_client(authenticated=True) -> Client:
+    """Creates an Appwrite client instance with authentication."""
+    client = Client()
+    client.set_endpoint(settings.APPWRITE_ENDPOINT)
+    client.set_project(settings.APPWRITE_PROJECT_ID)
     if authenticated and settings.APPWRITE_API_KEY:
         client.set_key(settings.APPWRITE_API_KEY)
-    
     return client
 
-# Initialize default clients
-client = make_client()
-appwrite_account = Account(client)
-appwrite_db = Databases(client)
+def get_database():
+    client = create_client()
+    return Databases(client)
+
+def get_account():
+    client = create_client()
+    return Account(client)
 
 async def create_task(appwrite_db, title: str) -> Task:
     """Create a new task with empty subtasks list"""
@@ -47,7 +46,7 @@ async def create_task(appwrite_db, title: str) -> Task:
     task_dict["subtasks"] = []  # Initialize with empty subtasks
     return Task(**task_dict)
 
-async def add_subtask(appwrite_db, parent_id: str, title: str) -> SubTask:
+async def add_subtask(appwrite_db, parent_id: str, title: str) -> Subtask:
     """Add a subtask to existing task"""
     current_subtasks = await appwrite_db.get_document(
         settings.DATABASE_ID,
@@ -73,9 +72,9 @@ async def add_subtask(appwrite_db, parent_id: str, title: str) -> SubTask:
         subtask_id,
         subtask_dict
     )
-    return SubTask(**subtask_dict)
+    return Subtask.from_dict(subtask_dict)
 
-def get_subtasks(appwrite_db, parent_id: str) -> list[SubTask]:
+def get_subtasks(appwrite_db, parent_id: str) -> list[Subtask]:
     """Get all subtasks for a given parent task"""
     subtasks = appwrite_db.list_documents(
         settings.DATABASE_ID,
@@ -84,7 +83,7 @@ def get_subtasks(appwrite_db, parent_id: str) -> list[SubTask]:
     )
     # Convert to Subtask model
     subtasks = [
-        SubTask(
+        Subtask(
             id = subtask["$id"],  # Convert $id to id
             parent_id = subtask["parent_id"],
             title = subtask.get("title", ""),
@@ -139,7 +138,7 @@ def get_task(appwrite_db, task_id: str) -> Task:
         subtasks=task.get("subtasks", [])
         )
 
-def get_subtask(appwrite_db, subtask_id: str) -> SubTask:
+def get_subtask(appwrite_db, subtask_id: str) -> Subtask:
     """Get a specific subtask by ID"""
     subtask = appwrite_db.get_document(
         settings.DATABASE_ID,
@@ -149,7 +148,7 @@ def get_subtask(appwrite_db, subtask_id: str) -> SubTask:
     if not subtask:
         return None
     # Convert to SubTask model
-    return SubTask(
+    return Subtask(
         id = subtask["$id"],  # Convert $id to id
         parent_id = subtask["parent_id"],
         title = subtask.get("title", ""),
@@ -199,7 +198,7 @@ async def update_task_status(appwrite_db, user_id: str, task: Task, nested: bool
         "updated_subtasks": updated_subtasks
     }
 
-async def update_subtask_status(appwrite_db, user_id: str, subtask: SubTask, nested: bool = False) -> None:
+async def update_subtask_status(appwrite_db, user_id: str, subtask: Subtask, nested: bool = False) -> None:
     """Update subtask status and create a checkin if not nested"""
     print(f"############\n{subtask=}\n############")
     # 1. Create checkin

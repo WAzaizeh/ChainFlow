@@ -1,10 +1,9 @@
 from fasthtml.common import *
-from core.appwrite_client import make_client, appwrite_account
+from core.appwrite_client import create_client, get_account
 from auth.oauth import google_oauth_url
 from core.config import settings
 import urllib.parse
 from appwrite.services.account import Account
-
 from core.app import rt
 
 @rt("/login", methods=["GET"])
@@ -87,7 +86,8 @@ async def oauth_token(req, session):
         return RedirectResponse("/login?failed=1", status_code=303)
 
     try:
-        user_client = make_client(authenticated=False).set_jwt(jwt)
+        user_client = create_client(authenticated=False).set_jwt(jwt)
+        appwrite_account = get_account(user_client)
         user = appwrite_account(user_client).get()
         session["user"] = {"id": user["$id"], "email": user["email"]}
         return RedirectResponse("/", status_code=303)
