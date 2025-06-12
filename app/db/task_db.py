@@ -12,7 +12,7 @@ from models.task import (
 class TaskDatabase:
     def __init__(self):
         self.database = get_database()
-        self.database_id = settings.DATABASE_ID
+        self.database_id = settings.TASKS_DATABASE_ID
 
     def get_subtasks(self, task_id: str) -> List[Subtask]:
         """Fetch subtasks for a specific task"""

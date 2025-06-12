@@ -6,7 +6,7 @@ def BottomNav(active_button_index: int = None) -> Div:
         A(Span('home', cls='material-symbols-rounded'), 'Home', cls=f"nav-item {'active' if active_button_index==1 else ''}", href='/'),
         A(Span('task', cls='material-symbols-rounded'), 'Tasks', cls=f"nav-item {'active' if active_button_index==2 else ''}", href='/tasks'),
         A(Span('inventory', cls='material-symbols-rounded'), 'Inventory', cls=f"nav-item {'active' if active_button_index==3 else ''}", href='/inventory'),
-        A(Span('profile', cls='material-symbols-rounded'), 'Profile', cls=f"nav-item {'active' if active_button_index==4 else ''}", href='/profile'),
+        A(Span('person', cls='material-symbols-rounded'), 'Profile', cls=f"nav-item {'active' if active_button_index==4 else ''}", href='/profile'),
         cls='btm-nav'
     )
 

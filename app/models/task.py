@@ -21,7 +21,7 @@ class Subtask:
     def from_dict(cls, data: Dict[str, Any]) -> 'Subtask':
         """Create Subtask from Appwrite document"""
         return cls(
-            id=data["$id"],  # Handle both $id and id
+            id=data["$id"],
             task_id=data['task_id'],
             title=data['title'],
             status=data['status'],

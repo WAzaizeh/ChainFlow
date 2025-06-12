@@ -1,0 +1,15 @@
+#success-message {
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+#success-message.show {
+    opacity: 1;
+}
+
+.htmx-indicator {
+    display: none;
+}
+.htmx-request .htmx-indicator {
+    display: block;
+}

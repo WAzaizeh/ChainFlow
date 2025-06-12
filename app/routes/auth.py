@@ -39,8 +39,19 @@ async def login_post(req, session, account: Account):
     
 # --- Google OAuth kickoff ---------------------------------------------------
 @rt("/login/google")
-def google_kickoff():
-    return RedirectResponse(google_oauth_url(), status_code=302)
+def google_kickoff(req):
+    """Redirect to Google OAuth2 login"""
+    # Get the host and scheme from the request
+    request_host = req.headers.get('host', settings.APP_URL.replace('http://', ''))
+    # Check if request is coming through ngrok (https)
+    scheme = 'https' if 'ngrok' in request_host else 'http'
+    # Build the base URL with correct scheme
+    base_url = f"{scheme}://{request_host}"
+    
+    return RedirectResponse(
+        google_oauth_url(base_url),
+        status_code=303
+    )
 
 # --- OAuth SUCCESS landing: grab JWT in browser & hand to backend ----------
 @rt("/oauth/google")
