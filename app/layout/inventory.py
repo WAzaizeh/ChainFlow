@@ -155,3 +155,92 @@ def inventory_edit_view() -> Div:
         inventory_search_bar(),
         Div(id="item-form", cls="mt-6")
     )
+
+def unit_input_component(tier: int = 0) -> Div:
+    """
+    Reusable unit input component for primary (tier=0) and secondary (tier=1) units
+    """
+    if tier > 1:
+        raise ValueError("Only primary and secondary tiers are supported")
+    
+    is_primary = tier == 0
+    return Div(
+        cls="unit-input-container space-y-4 !mt-0",
+        **{"data-tier": str(tier)}
+    )(
+        # Unit name input
+        Input(
+            type="text",
+            name=f"unit_name_{tier}",
+            placeholder=f"{'Primary' if is_primary else 'Secondary'} unit name",
+            cls="w-full p-3 border rounded-lg",
+            required=True,  # Both primary and secondary are required
+            **{"hx-on:input": "updateConversionLabel(this)" if not is_primary else None}
+        ),
+        # Conversion rate input (only for secondary unit)
+        (
+            Label(cls="block !mt-0")(
+                Span(
+                    cls="text-sm text-gray-600 conversion-label ml-2",
+                    **{"data-primary-unit": "true"}
+                )("How many units in one primary unit?"),
+                Input(
+                    type="number",
+                    name=f"conversion_rate_{tier}",
+                    min="0.000001",
+                    step="any",
+                    placeholder="Conversion rate",
+                    required=True,  # Make conversion rate required
+                    cls="w-full p-3 border rounded-lg mt-1"
+                )
+            )
+        ) if not is_primary else "",
+        # Add secondary unit button (only for primary unit)
+        Button(
+            hx_get="/inventory/unit-input/1",
+            hx_target="this",
+            hx_swap="outerHTML",
+            type="button",
+            cls="text-blue-500 hover:text-blue-600 pl-0 !mt-0",
+            style="border: none"
+        )("+ Add secondary unit") if is_primary else ""
+    )
+
+def inventory_add_item() -> Form:
+    """Form to add a new inventory item"""
+    return Form(
+        id="add-item-form",
+        hx_post="/inventory/add",
+        hx_swap="innerHTML",
+        hx_target="#item-form",
+        hx_on="htmx:afterRequest: if(event.detail.successful) { \
+            document.getElementById('success-message').classList.add('show'); \
+            setTimeout(() => { document.getElementById('success-message').classList.remove('show'); }, 2000); \
+        }",
+        cls="space-y-4"
+    )(
+        H3("Add New Item", cls="text-lg font-medium"),
+        Input(
+            type="text", 
+            name="name", 
+            placeholder="Item Name", 
+            required=True, 
+            cls="w-full p-3 border rounded-lg"
+        ),
+        Input(
+            type="number", 
+            name="quantity", 
+            placeholder="Quantity", 
+            min="1", 
+            value="1", 
+            required=True, 
+            cls="w-full p-3 border rounded-lg"
+        ),
+        Div(cls="space-y-4")(
+            unit_input_component(tier=0)
+        ),
+        Button(
+            type="submit",
+            cls="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+        )("Add Item")
+    )

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, Any
 from appwrite.id import ID
+from enum import Enum
 
 @dataclass
 class InventoryItem:
@@ -66,3 +67,12 @@ class InventoryChange:
             "timestamp": self.timestamp.isoformat() if isinstance(self.timestamp, datetime) else self.timestamp,
             "user_id": self.user_id
         }
+
+@dataclass
+class ItemUnit:
+    id: str
+    item_id: str
+    unit_name: str
+    tier: int  # 0=primary, 1=secondary
+    conversion: float  # conversion rate to previous tier
+    last_updated: datetime

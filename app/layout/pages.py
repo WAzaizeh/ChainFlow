@@ -4,7 +4,11 @@ from components.navigation import BottomNav
 from models.task import Task
 from .tasks import tasks_container
 from models.inventory import InventoryItem
-from layout.inventory import inventory_edit_view, inventory_table_view
+from layout.inventory import (
+    inventory_edit_view,
+    inventory_table_view,
+    inventory_add_item
+)
 
 def TasksPage(tasks: list[Task]) -> AppContainer:
     """Tasks page layout with container and navigation"""
@@ -69,8 +73,33 @@ def InventoryPage(items: list[InventoryItem]) -> Div:
                     id="view-content",
                     *inventory_table_view(items)
                 ),
+                Input(
+                    type="radio",
+                    name="inventory_tab",
+                    role="tab",
+                    cls="tab",
+                    id="add-tab",
+                    aria_label="Add New"
+                ),
+                Div(
+                    role="tabpanel",
+                    cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                    id="add-content",
+                    *inventory_add_item()
+                ),
             )
         )
     ),
     BottomNav(active_button_index=2)  # Assuming inventory is the third nav item
+    )
+
+def ProfilePage(user) -> AppContainer:
+    """Profile page placeholder"""
+    return AppContainer(
+        Div(cls="container mx-auto p-4 max-w-4xl")(
+            H1("Profile", cls="text-2xl font-bold mb-6"),
+            P(f"Email: {user['email']}", cls="text-gray-700"),
+            P(f"User ID: {user['id']}", cls="text-gray-700")
+        ),
+        BottomNav(active_button_index=3)  # Assuming profile is the fourth nav item
     )

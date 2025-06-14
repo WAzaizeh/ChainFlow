@@ -70,3 +70,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+function updateConversionLabel(input) {
+    const container = input.closest('.unit-input-container');
+    const secondaryUnit = input.value || '[secondary unit]';
+    const primaryUnit = document.querySelector('input[name="unit_name_0"]').value || '[primary unit]';
+    
+    const label = container.querySelector('.conversion-label');
+    if (label) {
+        label.textContent = `How many ${secondaryUnit}s in one ${primaryUnit}?`;
+    }
+}

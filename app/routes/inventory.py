@@ -1,7 +1,11 @@
 from core.app import rt
 from fasthtml.common import *
 from layout.pages import InventoryPage
-from layout.inventory import quantity_adjuster, search_result_item
+from layout.inventory import (
+    quantity_adjuster,
+    search_result_item,
+    unit_input_component
+)
 from db.inventory_db import InventoryDatabase
 from datetime import datetime
 
@@ -53,3 +57,8 @@ async def update_inventory(req, session, item_id: str):
     if success:
         return "Success"
     return "Failed to update inventory", 500
+
+@rt('/inventory/unit-input/{tier}', methods=['GET'])
+async def get_unit_input(tier: int):
+    """Return HTML for a new unit input component"""
+    return unit_input_component(tier)
