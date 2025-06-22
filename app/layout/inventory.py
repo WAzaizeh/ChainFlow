@@ -103,14 +103,9 @@ def quantity_adjuster(item: InventoryItem = None) -> Form:
                 name="unit",
                 cls="border rounded-lg px-3 py-2"
             )(
-                Option(value="", selected=not item.unit)("No unit"),
-                Option(value="kg", selected=item.unit == "kg")("Kilograms"),
-                Option(value="g", selected=item.unit == "g")("Grams"),
-                Option(value="l", selected=item.unit == "l")("Liters"),
-                Option(value="ml", selected=item.unit == "ml")("Milliliters"),
-                Option(value="pcs", selected=item.unit == "pcs")("Pieces")
+                Option(value=unit, selected=not item.units)(unit) for unit in item.units
             )
-        ) if item.has_unit else "",
+        ),
         # Add loading indicator
         Div(
             id="submit-indicator",
@@ -141,7 +136,7 @@ def inventory_table_view(items: list[InventoryItem]) -> Div:
                     Tr(
                         Td(item.name),
                         Td(str(item.quantity)),
-                        Td(item.unit or "-"),
+                        Td(item.units or "-"),
                         Td(item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-")
                     ) for item in items
                 )
