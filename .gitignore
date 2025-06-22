@@ -122,3 +122,6 @@ llm-*.txt
 
 # FastHTML session key
 .sesskey
+
+# development tests
+dev_tests/
