@@ -63,12 +63,13 @@ uvicorn app.main:app --reload --port 5000
 
 ```
 chainflow/
-├── app/
+── app/
 │   ├── layout/      # UI components
 │   ├── models/      # Data models
 │   ├── routes/      # API endpoints
 │   └── db/          # Database operations
-└── requirements.txt # Project dependencies
+├── requirements.txt # Project dependencies
+└── Procfile         # serverless deployment configuration
 ```
 
 ## Contributing
