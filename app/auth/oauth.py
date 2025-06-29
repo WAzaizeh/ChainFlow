@@ -10,7 +10,7 @@ def google_oauth_url(base_url: str) -> str:
     base_url = base_url.rstrip('/')
     
     # Encode URLs with proper escaping
-    success = urllib.parse.quote(f"{base_url}/oauth-token", safe="")
+    success = urllib.parse.quote(f"{base_url}/oauth/google", safe="")
     failure = urllib.parse.quote(f"{base_url}/login", safe="")
 
     # Add debug logging

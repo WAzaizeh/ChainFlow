@@ -2,10 +2,11 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY app/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn uvicorn
 
-COPY app/ .
+# Use volume mount for local development
+# COPY app/ .
 
 # Use 8080 as internal port
 ENV PORT=8080

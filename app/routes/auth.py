@@ -5,11 +5,26 @@ from core.config import settings
 import urllib.parse
 from appwrite.services.account import Account
 from core.app import rt
+from auth.oauth import verify_oauth_token
+
 
 @rt("/login", methods=["GET"])
 def login_get(req):
     failed = req.query_params.get("failed")
-    err = P("Google sign‑in failed, try again.", cls="text-red-600") if failed else ""
+    error_msg = req.query_params.get("error", "n")
+    state = req.query_params.get("state", "m")
+    code = req.query_params.get("code", "s")
+
+    err = (
+        Div(cls="text-red-600 space-y-2")(
+            P("Google sign‑in failed, try again."),
+            Div(cls="text-sm font-mono bg-red-50 p-2 rounded space-y-1")(
+                P(f"Error: {error_msg}"),
+                P(f"State: {state}"),
+                P(f"Code: {code}")
+            )
+        ) if failed else ""
+    )
     return Titled(
         "Sign in",
         err,
@@ -41,15 +56,15 @@ async def login_post(req, session, account: Account):
 @rt("/login/google")
 def google_kickoff(req):
     """Redirect to Google OAuth2 login"""
-    # Get the host and scheme from the request
+    # Get the host from the request or fallback to settings
+
     request_host = req.headers.get('host', settings.APP_URL.replace('http://', ''))
-    # Check if request is coming through ngrok (https)
-    scheme = 'https' if 'ngrok' in request_host else 'http'
-    # Build the base URL with correct scheme
-    base_url = f"{scheme}://{request_host}"
+    base_url = f"http://{request_host}"
     
+    oauth_url = google_oauth_url(base_url)
+
     return RedirectResponse(
-        google_oauth_url(base_url),
+        oauth_url,
         status_code=303
     )
 
@@ -60,6 +75,7 @@ def google_success(req):
     We *always* return a tiny HTML page that finishes auth in JS.
     Server-side never sees the cookie or fragment.
     """
+    
     return Titled(
         "Finishing sign-in…",
         NotStr(f"""
@@ -71,7 +87,9 @@ def google_success(req):
             const account = new Appwrite.Account(client);
 
             try {{
-              const {{ jwt }} = await account.createJWT();   // 15-min user token
+              console.log("Creating JWT...");
+              const {{ jwt }} = await account.createJWT();
+              console.log("JWT created successfully");
               const formData = new FormData();
               formData.append("jwt", jwt);
               await fetch("/oauth-token", {{
@@ -81,26 +99,25 @@ def google_success(req):
               }});
               window.location.href = "/";
             }} catch (err) {{
-              console.error(err);
+              console.error("JWT creation failed:", err);
               window.location.href = "/login?failed=1&error=" + encodeURIComponent(err.message);
             }}
           </script>
         """)
     )
 
-@rt("/oauth-token")
+@rt("/oauth-token", methods=["POST"])
 async def oauth_token(req, session):
     form = await req.form()
 
     jwt = form.get("jwt")
     if not jwt:
         return RedirectResponse("/login?failed=1", status_code=303)
+        
 
     try:
-        user_client = create_client(authenticated=False).set_jwt(jwt)
-        appwrite_account = get_account(user_client)
-        user = appwrite_account(user_client).get()
-        session["user"] = {"id": user["$id"], "email": user["email"]}
+        user_data = await verify_oauth_token(jwt)
+        session["user"] = user_data
         return RedirectResponse("/", status_code=303)
     except Exception as e:
         return RedirectResponse(
