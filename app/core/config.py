@@ -7,7 +7,9 @@ load_dotenv()
 class Settings:
     # App settings
     APP_NAME = "Dera Manager"
-    APP_URL = os.getenv("APP_URL", "http://localhost:5001")
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = int(os.getenv("PORT", 5001))
+    APP_URL = os.getenv("APP_URL", f"http://localhost:{PORT}")
     
     # Appwrite settings
     APPWRITE_ENDPOINT = os.getenv("APPWRITE_ENDPOINT", "https://cloud.appwrite.io/v1")

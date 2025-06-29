@@ -68,10 +68,36 @@ chainflow/
 │   ├── models/      # Data models
 │   ├── routes/      # API endpoints
 │   └── db/          # Database operations
+├── terraform/       # Infrastructure as Code
+│   ├── main.tf     # Main Terraform configuration
+│   ├── variables.tf # Variable definitions
+│   └── outputs.tf  # Output definitions
 ├── requirements.txt # Project dependencies
 └── Procfile         # serverless deployment configuration
 ```
 
-## Contributing
+## Infrastructure Setup (Terraform)
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. Initialize Terraform:
+```bash
+cd terraform
+terraform init
+```
+
+2. Plan deployment:
+```bash
+terraform plan -var-file="dev.tfvars"
+```
+
+3. Apply changes:
+```bash
+terraform apply -var-file="dev.tfvars"
+```
+
+## Environment Variables
+Required variables in `dev.tfvars`:
+- `project_id`: GCP project ID
+- `region`: GCP region
+- `service_name`: Cloud Run service name
+- `image_name`: Container image name
+```
