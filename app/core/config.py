@@ -22,6 +22,9 @@ class Settings:
     
     # Auth settings
     OAUTH_SCOPES = ["openid", "email"]
+
+    # GitHub settings
+    GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", None)
     
     @property
     def oauth_success_url(self):

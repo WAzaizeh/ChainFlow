@@ -1,0 +1,27 @@
+name: Task Management
+
+on:
+  schedule:
+    # Archive at 2 AM UTC
+    - cron: '0 2 * * *'
+    # Reset at 8 PM UTC
+    - cron: '0 20 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  manage-tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Archive Tasks (2 AM)
+        if: github.event.schedule == '0 2 * * *'
+        run: |
+          curl -X POST \
+          -H "X-GitHub-Token: ${{ secrets.GITHUB_WEBHOOK_SECRET }}" \
+          ${{ secrets.APP_URL }}/admin/tasks/archive
+
+      - name: Reset Tasks (8 PM)
+        if: github.event.schedule == '0 20 * * *'
+        run: |
+          curl -X POST \
+          -H "X-GitHub-Token: ${{ secrets.GITHUB_WEBHOOK_SECRET }}" \
+          ${{ secrets.APP_URL }}/admin/tasks/reset

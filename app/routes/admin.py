@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 db = TaskDatabase()
 
 async def verify_webhook_secret(x_github_token: str = Header(None)):
+    if settings.GITHUB_WEBHOOK_SECRET is None:
+        raise HTTPException(status_code=500, detail="GitHub webhook secret not configured")
     if x_github_token != settings.GITHUB_WEBHOOK_SECRET:
         raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
