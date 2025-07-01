@@ -2,7 +2,7 @@ from typing import List, Optional, Dict
 from appwrite.services.users import Users
 from appwrite.services.teams import Teams
 from core.appwrite_client import create_client
-from core.config import settings
+from models.user import UserRole
 import logging
 
 logger = logging.getLogger(__name__)
@@ -104,3 +104,23 @@ class AuthDatabase:
         except Exception as e:
             logger.error(f"Failed to update user: {e}")
             raise
+
+    def get_user_role(self, user_id: str) -> UserRole:
+        """Get user role based on their team membership"""
+        try:
+            user_info = self.users.get(user_id)
+            if 'labels' not in user_info:
+                logger.warning(f"User {user_id} has no labels, defaulting to 'member'")
+                return UserRole.MEMBER
+            elif 'admin' in user_info['labels']:
+                logger.info(f"User {user_id} is an admin")
+                return UserRole.ADMIN
+            elif 'franchisee' in user_info['labels']:
+                logger.info(f"User {user_id} is a franchisee")
+                return UserRole.FRANCHISEE
+            else:
+                logger.info(f"User {user_id} is a member")
+                return UserRole.MEMBER
+        except Exception as e:
+            logger.error(f"Failed to get user role: {e}")
+            return 'member'
