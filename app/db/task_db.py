@@ -90,7 +90,7 @@ class TaskDatabase:
             collection_id='task_history',
             queries=[
                 Query.equal('task_id', task_id),
-                Query.orderDesc('timestamp')
+                Query.order_desc('timestamp')
             ]
         )
         return [TaskHistory.from_dict(doc) for doc in result['documents']]
@@ -103,7 +103,7 @@ class TaskDatabase:
             collection_id='task_history',
             queries=[
                 Query.equal('task_id', task_id),
-                Query.orderDesc('timestamp')
+                Query.order_desc('timestamp')
             ]
         )
         return [TaskHistory.from_dict(doc) for doc in result['documents']]

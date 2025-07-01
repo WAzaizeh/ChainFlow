@@ -3,3 +3,4 @@ from . import main
 from . import tasks
 from . import inventory
 from . import profile
+from . import orders

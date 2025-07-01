@@ -9,6 +9,9 @@ from layout.inventory import (
     inventory_table_view,
     inventory_add_item
 )
+from layout.orders import render_start_order_tab, render_orders_list
+from models.order import Order, OrderStatus
+from db.auth import AuthDatabase
 
 def TasksPage(tasks: list[Task]) -> AppContainer:
     """Tasks page layout with container and navigation"""
@@ -103,3 +106,64 @@ def ProfilePage(user) -> AppContainer:
         ),
         BottomNav(active_button_index=3)  # Assuming profile is the fourth nav item
     )
+
+def OrdersPage(orders: list[Order], draft_order: Order, is_admin: bool = False) -> AppContainer:
+    """Orders page layout with tabs for starting and viewing orders"""
+    return AppContainer(
+            Div(cls="container mx-auto p-4 max-w-4xl")(
+                # Success message
+                Div(
+                    id="success-message",
+                    cls="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 \
+                        text-white px-6 py-3 rounded-lg shadow-lg opacity-0 transition-opacity \
+                        duration-200 z-50",
+                    style="pointer-events: none"
+                )("Order Updated Successfully"),
+                
+                # Tab Container
+                Div(cls="flex flex-col gap-2")(
+                    Div(
+                        role="tablist",
+                        id="orders-tabs",
+                        cls="tabs tabs-lifted"
+                    )(
+                        # Start Order Tab (only for non-admins)
+                        *([] if is_admin else [
+                            Input(
+                                type="radio",
+                                name="orders_tab",
+                                role="tab",
+                                cls="tab",
+                                id="start-tab",
+                                checked=True,
+                                aria_label="Start Order"
+                            ),
+                            Div(
+                                role="tabpanel",
+                                cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                                id="start-content",
+                                *render_start_order_tab(draft_order)
+                            ),
+                        ]),
+                        
+                        # View Orders Tab
+                        Input(
+                            type="radio",
+                            name="orders_tab",
+                            role="tab",
+                            cls="tab",
+                            id="view-tab",
+                            checked=is_admin,  # Checked by default for admins
+                            aria_label="View Orders"
+                        ),
+                        Div(
+                            role="tabpanel",
+                            cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                            id="view-content",
+                            *render_orders_list()
+                        )
+                    )
+                )
+            ),
+            BottomNav(active_button_index=0)  # Assuming orders is first nav item
+        )

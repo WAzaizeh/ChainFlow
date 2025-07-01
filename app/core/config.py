@@ -17,8 +17,9 @@ class Settings:
     APPWRITE_API_KEY = os.getenv("APPWRITE_API_KEY", "")
     
     # Database settings
-    TASKS_DATABASE_ID = os.getenv("TASKS_DATABASE_ID")
-    INVENTORY_DATABASE_ID = os.getenv("INVENTORY_DATABASE_ID")
+    TASKS_DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID")
+    INVENTORY_DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID")
+    DATABASE_ID = os.getenv("APPWRITE_DATABASE_ID")
     
     # Auth settings
     OAUTH_SCOPES = ["openid", "email"]
