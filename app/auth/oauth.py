@@ -13,9 +13,6 @@ def google_oauth_url(base_url: str) -> str:
     success = urllib.parse.quote(f"{base_url}/oauth/google", safe="")
     failure = urllib.parse.quote(f"{base_url}/login", safe="")
 
-    # Add debug logging
-    print(f"OAuth redirect URLs: success={success}, failure={failure}")
-
     scope_params = "&".join(
         f"scopes[]={urllib.parse.quote(s, safe='')}" 
         for s in settings.OAUTH_SCOPES
@@ -29,8 +26,6 @@ def google_oauth_url(base_url: str) -> str:
         f"&{scope_params}"
     )
 
-    # Add debug logging
-    print(f"Final OAuth URL: {oauth_url}")
     return oauth_url
 
 async def verify_oauth_token(jwt_token: str) -> dict:

@@ -45,7 +45,6 @@ class AuthDatabase:
         """Get all teams a user belongs to"""
         try:
             memberships = self.teams.list()
-            print(f"Memberships: {memberships}")
             return memberships['teams'] if memberships and 'teams' in memberships else []
         except Exception as e:
             logger.error(f"Failed to get user teams: {e}")
@@ -62,11 +61,8 @@ class AuthDatabase:
         return teams[0]['name'] if teams else None
 
     def is_admin(self, user_id: str) -> bool:
-        """Check if user has admin role"""
-            
+        """Check if user has admin role"""  
         user_info = self.users.get(user_id)
-        print(f"User info: {user_info}")
-
         return user_info.get('labels', []) == ['admin']
 
     def create_branch(self, name: str) -> Dict:

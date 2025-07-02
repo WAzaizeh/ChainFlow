@@ -50,7 +50,6 @@ class OrderDatabase:
                     queries=[Query.equal('order_id', doc['$id'])]
                 )
                 doc['items'] = [OrderItem.from_dict(item) for item in items_result['documents']]
-                print(f"Order {doc['$id']} items: {doc['items']}")
         return [Order.from_dict(doc) for doc in result['documents']]
 
     def get_draft_order(self, branch_id: str) -> Optional[Order]:
@@ -65,16 +64,17 @@ class OrderDatabase:
                 Query.limit(1)
             ]
         )
-        docs = result['documents']
-        if docs:
-            # fetch order items for the draft order
-            items_result = self.database.list_documents(
-                database_id=self.database_id,
-                collection_id='order_items',
-                queries=[Query.equal('order_id', docs[0]['$id'])]
-            )
-            docs[0]['items'] = [OrderItem.from_dict(item) for item in items_result['documents']]
-        print(f"Draft Order {docs[0]['$id']} items: {docs[0]['items']}")
+        docs = result.get('documents', [])
+        if not docs:
+            return None
+        
+        # fetch order items for the draft order
+        items_result = self.database.list_documents(
+            database_id=self.database_id,
+            collection_id='order_items',
+            queries=[Query.equal('order_id', docs[0]['$id'])]
+        )
+        docs[0]['items'] = [OrderItem.from_dict(item) for item in items_result['documents']]
         return Order.from_dict(docs[0]) if docs else None
 
     def add_item(self, order_id: str, product_id: str, quantity: int, notes: Optional[str] = None) -> OrderItem:
@@ -117,3 +117,49 @@ class OrderDatabase:
             }
         )
         return Order.from_dict(order_data)
+    
+    def get_order_info(self, order_id: str) -> Optional[Order]:
+        """Get order details by ID"""
+        try:
+            order_data = self.database.get_document(
+                database_id=self.database_id,
+                collection_id='orders',
+                document_id=order_id
+            )
+            items_result = self.database.list_documents(
+                database_id=self.database_id,
+                collection_id='order_items',
+                queries=[Query.equal('order_id', order_id)]
+            )
+            order_data['items'] = [OrderItem.from_dict(item) for item in items_result['documents']]
+            return Order.from_dict(order_data)
+        except Exception as e:
+            logger.error(f"Failed to get order {order_id}: {e}")
+            return None
+        
+    def delete_order(self, order_id: str) -> bool:
+        """Delete an order by ID"""
+        try:
+            # First delete all items associated with this order
+            items_result = self.database.list_documents(
+                database_id=self.database_id,
+                collection_id='order_items',
+                queries=[Query.equal('order_id', order_id)]
+            )
+            for item in items_result['documents']:
+                self.database.delete_document(
+                    database_id=self.database_id,
+                    collection_id='order_items',
+                    document_id=item['$id']
+                )
+            
+            # Now delete the order itself
+            self.database.delete_document(
+                database_id=self.database_id,
+                collection_id='orders',
+                document_id=order_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete order {order_id}: {e}")
+            return False

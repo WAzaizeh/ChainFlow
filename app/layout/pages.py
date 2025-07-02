@@ -160,7 +160,7 @@ def OrdersPage(orders: list[Order], draft_order: Order, is_admin: bool = False) 
                             role="tabpanel",
                             cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
                             id="view-content",
-                            *render_orders_list()
+                            *render_orders_list(orders, is_admin)
                         )
                     )
                 )

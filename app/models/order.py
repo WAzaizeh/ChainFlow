@@ -51,7 +51,7 @@ class Order:
             branch_id=data['branch_id'],
             status=OrderStatus(data['status']),
             type=OrderType(data['type']),
-            items=data['items'],
+            items=data['items'] if 'items' in data else [],
             created_by=data['created_by'],
             created_at=datetime.fromisoformat(data['created_at']),
             submitted_at=datetime.fromisoformat(data['submitted_at']) if data.get('submitted_at') else None
