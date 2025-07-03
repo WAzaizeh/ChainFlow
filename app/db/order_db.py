@@ -16,20 +16,26 @@ class OrderDatabase:
 
     def create_order(self, branch_id: str, user_id: str) -> Order:
         """Create a new draft order"""
-        order_data = self.database.create_document(
-            database_id=self.database_id,
-            collection_id='orders',
-            document_id=ID.unique(),
-            data={
-                'branch_id': branch_id,
-                'status': OrderStatus.DRAFT.value,
-                'type': OrderType.REGULAR.value,
-                'items': [],
-                'created_by': user_id,
-                'created_at': datetime.now().isoformat()
-            }
-        )
-        return Order.from_dict(order_data)
+        try:
+            order_data = self.database.create_document(
+                database_id=self.database_id,
+                collection_id='orders',
+                document_id=ID.unique(),
+                data={
+                    'branch_id': branch_id,
+                    'status': OrderStatus.DRAFT.value,
+                    'type': OrderType.REGULAR.value,
+                    'created_by': user_id,
+                    'created_at': datetime.now().isoformat(),
+                    'submitted_at': None,
+                }
+            )
+            logger.info(f"Created new draft order {order_data['$id']} for branch {branch_id}")
+            return Order.from_dict(order_data)
+            
+        except Exception as e:
+            logger.error(f"Failed to create draft order: {e}")
+            raise
 
     def get_branch_orders(self, branch_id: str) -> List[Order]:
         """Get all orders for a branch"""
@@ -77,21 +83,27 @@ class OrderDatabase:
         docs[0]['items'] = [OrderItem.from_dict(item) for item in items_result['documents']]
         return Order.from_dict(docs[0]) if docs else None
 
-    def add_item(self, order_id: str, product_id: str, quantity: int, notes: Optional[str] = None) -> OrderItem:
+    def add_order_item(self, order_id: str, product_name : str, product_id: str, quantity: int, units: list[str], notes: Optional[str] = None) -> OrderItem:
         """Add item to order"""
-        item_data = self.database.create_document(
-            database_id=self.database_id,
-            collection_id='order_items',
-            document_id=ID.unique(),
-            data={
+        print(f'{product_name=}')
+        try:
+            item_data = self.database.create_document(
+                database_id=self.database_id,
+                collection_id='order_items',
+                document_id=ID.unique(),
+                data={
                 'order_id': order_id,
+                'product_name': product_name,
                 'product_id': product_id,
                 'quantity': quantity,
+                'units': units,
                 'notes': notes,
-                'created_at': datetime.now().isoformat()
+                'created_at': datetime.now().isoformat(),
             }
-        )
-        return OrderItem.from_dict(item_data)
+            )
+            return OrderItem.from_dict(item_data)
+        except Exception as e:
+            logger.error(f"Failed to add item to order {order_id}: {e}")
 
     def submit_order(self, order_id: str) -> Order:
         """Submit draft order"""

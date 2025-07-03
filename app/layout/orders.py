@@ -1,13 +1,19 @@
 from fasthtml.common import *
-from models.order import Order, OrderStatus, OrderType
+from models.order import (
+    Order,
+    OrderItem,
+    OrderStatus,
+    OrderType
+)
 from models.inventory import InventoryItem
 from components.icon import Icon
 from components.dropdown import Dropdown
 import json
 
-def render_draft_order(draft_order: Order| None = None) -> Div:
+def render_draft_order(draft_order: Order) -> Div:
     """Render the current draft order card"""
     return Div(
+        id=f"draft-order-{draft_order.id}",
         cls="mb-8 p-4 border rounded-lg bg-white shadow-sm"
     )(
         Div(cls="flex justify-between items-center mb-4")(
@@ -36,6 +42,8 @@ def render_draft_order(draft_order: Order| None = None) -> Div:
             Button(
                 "Delete Draft",
                 hx_delete=f"/orders/{draft_order.id}",
+                hx_target=f"#draft-order-{draft_order.id}",
+                hx_swap="outerHTML",
                 hx_confirm="Are you sure you want to delete this draft order?",
                 cls="btn btn-outline btn-error"
             )
@@ -121,11 +129,11 @@ def render_orders_list(orders: list[Order] = [], is_admin: bool = False):
         ) if orders else P("No orders found", cls="text-gray-500 italic")
     ]
 
-def render_order_row(self, order: Order, is_admin: bool = False) -> Tr:
+def render_order_row(order: Order, is_admin: bool = False) -> Tr:
     """Render a single order row"""
     return Tr(
         Td(order.id[:8]),
-        Td(self.status_badge(order.status)),
+        Td(status_badge(order.status)),
         Td(order.type.value.title()),
         Td(order.created_at.strftime("%Y-%m-%d %H:%M")),
         Td(str(len(order.items))),
@@ -279,6 +287,7 @@ def render_order_detail(order: Order) -> Div:
                         "Delete Order", 
                         hx_delete=f"/orders/{order.id}",
                         hx_confirm="Are you sure you want to delete this order?",
+                        hx_redirect="/orders",
                         cls="btn btn-outline"
                     ),
                     Button(
@@ -299,7 +308,7 @@ def render_order_detail(order: Order) -> Div:
         )
     )
 
-def render_search_result_item(item: InventoryItem) -> Div:
+def render_search_result_item(item: InventoryItem, draft_order: Order|None = None) -> Div:
     """Render a single inventory item search result"""
     return Div(
         cls="p-4 hover:bg-gray-50 cursor-pointer"
@@ -318,13 +327,37 @@ def render_search_result_item(item: InventoryItem) -> Div:
             Button(
                 "Add",
                 cls="btn btn-sm btn-primary",
-                hx_post=f"/orders/draft/items",  # We'll create this route later
+                hx_post=f"/orders/draft/items",
+                hx_headers=json.dumps({
+                    "Content-Type": "application/json"
+                }),
                 hx_vals=json.dumps({
+                    "order_id": draft_order.id if draft_order else None,
+                    "product_name": item.name,
                     "product_id": item.id,
-                    "quantity": 1
+                    "quantity": 1,
+                    "units": item.units or [],
                 }),
                 hx_target="#order-items-list",
-                hx_swap="beforeend"
+                hx_swap="innerHTML"
             )
+        )
+    )
+
+def render_order_item(order: Order, item: OrderItem) -> Div:
+    """Render a single order item in the list"""
+    print(f"{item.product_name=}")
+    return Div(
+        cls="p-4 border rounded-lg bg-white shadow-sm mb-4"
+    )(
+        Div(cls="flex justify-between items-center mb-2")(
+            H4(item.product_name, cls="text-lg font-semibold"),
+            Span(f"{item.quantity} {item.units[0] if item.units else ''}", cls="text-gray-600")
+        ),
+        Button(
+            "Remove",
+            hx_delete=f"/orders/{order.id}/items/{item.id}",
+            hx_confirm="Remove this item?",
+            cls="btn btn-outline btn-error mt-2"
         )
     )

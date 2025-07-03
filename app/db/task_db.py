@@ -52,7 +52,7 @@ class TaskDatabase:
         for task_doc in tasks_result['documents']:
             # Get subtasks for each task
             task_doc['subtasks'] = self.get_subtasks(task_doc['$id'])
-            # Add subtasks to task document
+            # Get subtasks to task document
             tasks.append(Task.from_dict(task_doc))
         return tasks
     

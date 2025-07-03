@@ -6,7 +6,8 @@ from db.auth import AuthDatabase
 from layout.pages import AppContainer
 from layout.orders import (
     render_order_detail,
-    render_search_result_item
+    render_search_result_item,
+    render_order_item
 )
 from models.order import OrderStatus, OrderType
 import logging
@@ -16,7 +17,7 @@ from components.icon import Icon
 from db.inventory_db import InventoryDatabase
 
 logger = logging.getLogger(__name__)
-db = OrderDatabase()
+order_db = OrderDatabase()
 inventory_db = InventoryDatabase()
 
 @rt('/orders/search-items', methods=['POST'])
@@ -27,6 +28,12 @@ async def search_inventory_items(request, session):
         return RedirectResponse('/login', status_code=303)
     
     try:
+        # Get draft order for branch if exists
+        auth_db = AuthDatabase()
+        branch_id = auth_db.get_user_branch(session)
+        draft_order = order_db.get_draft_order(branch_id)
+        
+        # Process search query
         form = await request.form()
         query = form.get('query', '').strip()
         
@@ -42,7 +49,7 @@ async def search_inventory_items(request, session):
             )
             
         return Div(cls="divide-y divide-gray-200")(
-            *[render_search_result_item(item) for item in items]
+            *[render_search_result_item(item, draft_order) for item in items]
         )
         
     except Exception as e:
@@ -60,19 +67,71 @@ async def start_order(session):
     user_id = session['user']['id']
     
     # Check if draft already exists
-    if db.get_draft_order(branch_id):
+    if order_db.get_draft_order(branch_id):
         return RedirectResponse('/orders', status_code=303)
         
-    order = db.create_order(branch_id, user_id)
+    order = order_db.create_order(branch_id, user_id)
     return RedirectResponse(f'/orders/{order.id}', status_code=303)
 
+@rt('/orders/draft/items', methods=['POST'])
+async def add_draft_item(request, session):
+    """Add item to current draft order, creating one if needed"""
+    if not session.get('user'):
+        return RedirectResponse('/login', status_code=303)
+        
+    try:
+        # Get or create draft order
+        auth_db = AuthDatabase()
+        branch_id = auth_db.get_user_branch(session)
+        
+        draft_order = order_db.get_draft_order(branch_id)
+        if not draft_order:
+            # Create new draft order if none exists
+            draft_order = order_db.create_order(branch_id, session['user']['id'])
+        
+        # Parse request data
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            form = await request.form()
+            data = {
+                'product_name': form.get('product_name'),
+                'product_id': form.get('product_id'),
+                'quantity': form.get('quantity', '1'),
+                'units': form.get('units'),
+            }
+        
+        # Add item to order
+        order_item = order_db.add_order_item(
+            order_id=draft_order.id,
+            product_name=data.get('product_name'),  # Use get() for safety
+            product_id=data['product_id'],
+            quantity=int(data.get('quantity', 1)),
+            units=data.get('units', []) if isinstance(data.get('units'), list) else [data.get('units')],
+            notes=data.get('notes')
+        )
+        
+        if not order_item:
+            return Response("Failed to add item", status_code=500)
+            
+        # Return updated items list
+        updated_order = order_db.get_order_info(draft_order.id)
+        print(f"Updated order: {updated_order.items[-1]}")
+        return Div(cls="space-y-4", id="order-items-list")(
+            *[render_order_item(updated_order, item) for item in updated_order.items]
+        )
+        
+    except Exception as e:
+        logger.error(f"Error adding item to draft: {e}")
+        return Response(str(e), status_code=500)
+    
 @rt('/orders/{order_id}/type', methods=['POST'])
 async def update_order_type(order_id: str, type: str = Form(...)):
     """Update order type"""
     try:
         # Update order type
         new_type = OrderType(type)
-        updated = db.update_order_type(order_id, new_type)
+        updated = order_db.update_order_type(order_id, new_type)
         
         if not updated:
             return Response("Failed to update order type", status_code=500)
@@ -95,7 +154,7 @@ async def update_order_type(order_id: str, type: str = Form(...)):
 @rt('/orders/{order_id}/type-selector')
 async def type_selector(order_id: str):
     """Render order type selector dropdown menu"""
-    order = db.get_order_info(order_id)
+    order = order_db.get_order_info(order_id)
     if not order:
         return Response(status_code=404)
     
@@ -126,7 +185,7 @@ async def view_order(order_id: str, session):
     auth_db = AuthDatabase()
     user_branch = auth_db.get_user_branch(session)
     
-    order = db.get_order_info(order_id)
+    order = order_db.get_order_info(order_id)
     if not order or order.branch_id != user_branch:
         return RedirectResponse('/orders', status_code=303)
     
@@ -152,17 +211,20 @@ async def delete_draft(order_id: str, session):
         auth_db = AuthDatabase()
         user_branch = auth_db.get_user_branch(session)
         
-        order = db.get_order_info(order_id)
+        order = order_db.get_order_info(order_id)
         if not order or order.branch_id != user_branch:
             return Response(status_code=403)
             
         if order.status != OrderStatus.DRAFT:
             return Response("Only draft orders can be deleted", status_code=400)
             
-        success = db.delete_order(order_id)
+        success = order_db.delete_order(order_id)
         if success:
             logger.info(f"Deleted draft order {order_id}")
-            return Response(status_code=200)
+            return Response(
+                status_code=200,  # Success status to trigger redirect
+                headers={"HX-Redirect": "/orders"}  # HTMX will handle this redirect
+            )
         else:
             return Response("Failed to delete order", status_code=500)
             
@@ -181,8 +243,8 @@ async def orders_page(session):
     user_is_admin = auth_db.is_admin(user_id)
     branch_id = auth_db.get_user_branch(session)
     
-    orders = db.get_branch_orders(branch_id)
-    draft_order = None if user_is_admin else db.get_draft_order(branch_id)
+    orders = order_db.get_branch_orders(branch_id)
+    draft_order = None if user_is_admin else order_db.get_draft_order(branch_id)
 
     return OrdersPage(
         orders=orders,

@@ -18,29 +18,35 @@ class OrderType(Enum):
 @dataclass
 class OrderItem:
     id: str
+    order_id: str
     product_id: str
+    product_name: str
     quantity: int
-    notes: Optional[str]
     created_at: datetime
+    notes: Optional[str] = None
+    units: Optional[List[str]] = None 
     
     @classmethod
     def from_dict(cls, data: dict) -> 'OrderItem':
         return cls(
             id=data['$id'],
+            order_id=data['order_id'],
             product_id=data['product_id'],
+            product_name=data['product_name'],
             quantity=data['quantity'],
             notes=data.get('notes'),
-            created_at=datetime.fromisoformat(data['created_at'])
+            units=data.get('units'),  # Get units from data
+            created_at=datetime.fromisoformat(data['created_at']) if 'created_at' in data else None
         )
 
 @dataclass
 class Order:
     id: str
-    branch_id: str  # Team/Branch ID
+    branch_id: str
     status: OrderStatus
     type: OrderType
     items: List[OrderItem]
-    created_by: str  # User ID
+    created_by: str
     created_at: datetime
     submitted_at: Optional[datetime]
     
