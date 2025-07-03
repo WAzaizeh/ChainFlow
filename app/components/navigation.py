@@ -25,7 +25,7 @@ def TopNav(title: int = None) -> Div:
                 H1(
                     title,
                     onclick='goBack()',
-                    cls='flex-1 text-black font-medium text-center text-base top-nav-title'
+                    cls='flex-1 text-black text-center top-nav-title text-2xl font-bold'
                     ),
                 cls='flex justify-center items-center p-4 top-nav',
             ),

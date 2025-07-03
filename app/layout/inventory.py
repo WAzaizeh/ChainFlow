@@ -120,26 +120,47 @@ def quantity_adjuster(item: InventoryItem = None) -> Form:
     )
 
 def inventory_table_view(items: list[InventoryItem]) -> Div:
-    """Render inventory items in a table view"""
-    return Div(cls="overflow-x-auto")(
-        Table(cls="table table-pin-rows table-pin-cols")(
-            Thead(
-                Tr(
-                    Th("Item Name"),
-                    Th("Quantity"),
-                    Th("Unit"),
-                    Th("Last Updated")
-                )
-            ),
-            Tbody(
-                *(
+    """Render inventory items in a responsive table/card view"""
+    return Div(
+        # Desktop Table View (hidden on mobile)
+        Div(cls="hidden md:block overflow-x-auto")(
+            Table(cls="table table-pin-rows table-pin-cols w-full")(
+                Thead(
                     Tr(
-                        Td(item.name),
-                        Td(str(item.quantity)),
-                        Td(item.units or "-"),
-                        Td(item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-")
-                    ) for item in items
+                        Th("Item Name"),
+                        Th("Quantity"),
+                        Th("Unit"),
+                        Th("Last Updated")
+                    )
+                ),
+                Tbody(
+                    *(
+                        Tr(
+                            Td(item.name),
+                            Td(str(item.quantity)),
+                            Td(item.units or "-"),
+                            Td(item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-")
+                        ) for item in items
+                    )
                 )
+            )
+        ),
+        # Mobile Card View (hidden on desktop)
+        Div(cls="grid grid-cols-1 gap-4 md:hidden")(
+            *(
+                Div(cls="bg-white rounded-lg shadow p-4 space-y-2")(
+                    Div(cls="font-medium text-lg text-gray-900")(item.name),
+                    Div(cls="grid grid-cols-2 gap-2 text-sm")(
+                        Div(cls="text-gray-500")("Quantity:"),
+                        Div(cls="text-gray-900")(str(item.quantity)),
+                        Div(cls="text-gray-500")("Unit:"),
+                        Div(cls="text-gray-900")(item.units or "-"),
+                        Div(cls="text-gray-500")("Last Updated:"),
+                        Div(cls="text-gray-900")(
+                            item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-"
+                        )
+                    )
+                ) for item in items
             )
         )
     )

@@ -1,0 +1,19 @@
+/* Table Responsive Styles */
+.table {
+    @apply min-w-full;
+}
+
+.table th {
+    @apply px-4 py-3 text-left text-sm font-semibold text-gray-900 bg-gray-50;
+}
+
+.table td {
+    @apply px-4 py-3 text-sm text-gray-500 border-t;
+}
+
+/* Card Styles for Mobile */
+@media (max-width: 768px) {
+    .overflow-x-auto {
+        margin: 0 -1rem;
+    }
+}
