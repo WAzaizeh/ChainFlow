@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from components.page import AppContainer
 from components.navigation import BottomNav
+from components.icon import Icon
 from models.task import Task
 from .tasks import tasks_container
 from models.inventory import InventoryItem
@@ -17,7 +18,16 @@ def TasksPage(tasks: list[Task]) -> AppContainer:
     """Tasks page layout with container and navigation"""
     return AppContainer(
         Div(cls="container mx-auto p-4 max-w-4xl")(
-            H1("Tasks", cls="text-2xl font-bold mb-6"),
+            Div(cls="flex justify-between items-center mb-6")(
+                H1("Tasks", cls="text-2xl font-bold"),
+                Button(
+                    Icon("refresh", cls="w-4 h-4"),
+                    hx_get="/tasks",
+                    hx_target="body",
+                    hx_swap="innerHTML",
+                    cls="btn btn-outline btn-square btn-sm border-gray-300 hover:bg-gray-100 !rounded-md"
+                )
+            ),
             Ul(
                 *[tasks_container(task) for task in tasks],
                 cls="list-none p-0"

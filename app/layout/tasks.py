@@ -23,7 +23,6 @@ def subtask_checkbox(subtask: Subtask) -> Form:
 
 def task_checkbox(task: Task) -> Form:
     """Render task checkbox with optimistic updates"""
-    subtask_ids = [st.id for st in task.subtasks]
     return Form(
         id=f"task-form-{task.id}",
         hx_post=f"/tasks/{task.id}/toggle",
@@ -49,7 +48,7 @@ def task_note(task: Task) -> Form:
         hx_post=f"/tasks/{task.id}/note",
         hx_trigger="input changed delay:500ms",
         hx_swap="none",
-        cls="mt-4 px-2"
+        cls="mt-4 px-2 ml-4"
     )(
         Input(
             type="text",
@@ -64,7 +63,7 @@ def subtask_container(subtask: Subtask) -> Li:
     """Render a subtask row with proper ordering"""
     return Li(
         id=f"subtask-{subtask.id}",
-        cls="ml-8 py-1 border-l-2 border-gray-200 pl-4",
+        cls="ml-8 py-1 border-l-2 border-gray-200 pl-4 list-none",
         style=f"order: {subtask.order}"  # Use order field for positioning
     )(
         subtask_checkbox(subtask)
@@ -75,7 +74,7 @@ def tasks_container(task: Task) -> Li:
     sorted_subtasks = sorted(task.subtasks, key=lambda x: x.order)
     return Li(
         id=f"task-{task.id}",
-        cls="mb-6 bg-white rounded-lg shadow-sm"
+        cls="mb-6 bg-white rounded-lg shadow-sm list-none"
     )(
         Div(cls="p-4 border-b")(
             task_checkbox(task)
@@ -84,13 +83,6 @@ def tasks_container(task: Task) -> Li:
             Ul(
                 *[subtask_container(st) for st in sorted_subtasks],
                 cls="list-none p-0 mb-3"
-            ),
-            Button(
-                Span("+ Add Subtask", cls="text-sm"),
-                hx_post=f"/tasks/{task.id}/subtasks",
-                hx_prompt="Enter subtask title",
-                cls="mt-3 ml-8 px-3 py-1 text-gray-600 hover:text-gray-800 \
-                     border border-gray-300 rounded-md hover:bg-gray-50"
             ),
             task_note(task)
         )
