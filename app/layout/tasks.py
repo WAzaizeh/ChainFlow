@@ -8,17 +8,18 @@ def subtask_checkbox(subtask: Subtask) -> Form:
         hx_post=f"/tasks/subtask/{subtask.id}/toggle",
         hx_trigger="change",
         hx_swap="outerHTML",
-        hx_target=f"#task-{subtask.task_id}",  # Target entire task content
-        cls="flex items-center gap-2"
+        hx_target=f"#subtask-form-{subtask.id}",
+        cls="flex items-center gap-2",
+        sse_swap=f"SubtaskStatusUpdate_{subtask.id}"
     )(
         Input(
             type="checkbox",
-            name="status",  # changed from completed to status
+            name="status",
             checked=subtask.status,
             cls="form-checkbox h-4 w-4 text-blue-600"
         ),
         Span(subtask.title, cls="flex-1"),
-        Input(type="hidden", name="task_id", value=subtask.task_id)  # changed from parent_id
+        Input(type="hidden", name="task_id", value=subtask.task_id)
     )
 
 def task_checkbox(task: Task) -> Form:
@@ -29,8 +30,9 @@ def task_checkbox(task: Task) -> Form:
         hx_trigger="change",
         hx_swap="outerHTML",
         hx_indicator="this",
-        hx_target=f"#task-{task.id}",  # Target the entire task container
-        cls="flex items-baseline gap-2"
+        hx_target=f"#task-form-{task.id}",
+        cls="flex items-baseline gap-2",
+        sse_swap=f"TaskStatusUpdate_{task.id}"
     )(
         Input(
             type="checkbox",
@@ -41,26 +43,26 @@ def task_checkbox(task: Task) -> Form:
         H3(task.title, cls="flex-1 font-medium my-0")
     )
 
-def task_note(task: Task) -> Form:
-    """Render task note input as its own form"""
+def task_note_form(task: Task) -> Form:
+    """Render task note form with SSE updates - follows same pattern as checkboxes"""
     return Form(
-        id=f"task-note-{task.id}",
-        hx_post=f"/tasks/{task.id}/note",
-        hx_trigger="input changed delay:500ms",
-        hx_swap="none",
-        cls="mt-4 px-2 ml-4"
+        id=f"task-note-form-{task.id}",
+        cls="mt-4 px-2 ml-4",
+        sse_swap=f"TaskNoteUpdate_{task.id}"
     )(
-        Input(
-            type="text",
+        Textarea(
+            id=f"note-textarea-{task.id}",
             name="note",
-            value=task.notes,
             placeholder="Add note...",
-            cls="w-full px-3 py-2 border rounded"
-        )
+            cls="w-full px-3 py-2 border rounded min-h-[100px]",
+            hx_post=f"/tasks/{task.id}/notes/update",
+            hx_trigger="keyup changed delay:500ms",
+            hx_include=f"#task-note-form-{task.id}"
+        )(task.notes or "")
     )
 
-def subtask_container(subtask: Subtask) -> Li:
-    """Render a subtask row with proper ordering"""
+def subtasks_list(subtask: Subtask) -> Li:
+    """Render a subtask row with proper ordering and SSE support"""
     return Li(
         id=f"subtask-{subtask.id}",
         cls="ml-8 py-1 border-l-2 border-gray-200 pl-4 list-none",
@@ -81,9 +83,10 @@ def tasks_container(task: Task) -> Li:
         ),
         Div(cls="p-4 bg-gray-50 rounded-b-lg space-y-4")(
             Ul(
-                *[subtask_container(st) for st in sorted_subtasks],
+                *[subtasks_list(st) for st in sorted_subtasks],
                 cls="list-none p-0 mb-3"
             ),
-            task_note(task)
+            task_note_form(task)
         )
     )
+

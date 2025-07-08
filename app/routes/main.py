@@ -20,5 +20,5 @@ def home(session):
             H1("Dera Manager", cls="text-2xl font-bold mb-6 text-center"),
             render_main_navigation(user_role)
         ),
-        BottomNav(active_button_index=0)
+        active_button_index= 1, # Assuming the first button is "Home"
     )

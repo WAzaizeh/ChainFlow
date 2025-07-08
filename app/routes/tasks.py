@@ -4,11 +4,14 @@ from db.task_db import TaskDatabase
 from models.task import Task, Subtask, TaskHistory
 from layout.tasks import (
     task_checkbox,
-    subtask_container,
-    tasks_container
+    subtask_checkbox,
 )
 from layout.pages import TasksPage
 from uuid import uuid4
+from starlette.requests import Request
+from sse_starlette.sse import EventSourceResponse
+from core.sse_manager import sse_manager
+import asyncio
 
 db = TaskDatabase()
 
@@ -39,10 +42,12 @@ async def toggle_task(session, task_id: str):
                 user_id=session['user']['id']
             )
     
-    success =  db.update_task(task)
+    success = db.update_task(task)
     if success:
         db.add_history(history)
-        return tasks_container(task)
+        # Broadcast update to all connected clients
+        await sse_manager.broadcast_task_update(task, "task_status")
+        return task_checkbox(task)
     return 'Failed to update task', 500
 
 @rt('/tasks/subtask/{subtask_id}/toggle', methods=['POST'])
@@ -50,7 +55,7 @@ async def toggle_subtask(req, session, subtask_id: str):
     '''Toggle subtask completion status and update parent task if needed'''
     data = await req.form()
     task_id = data['task_id']
-    task =  db.get_task(task_id)
+    task = db.get_task(task_id)
     if not task:
         return 'Task not found', 404
     
@@ -104,8 +109,11 @@ async def toggle_subtask(req, session, subtask_id: str):
     for history in histories:
         db.add_history(history)
     
-    # Update the task container
-    return tasks_container(task)
+    # Broadcast update to all connected clients
+    await sse_manager.broadcast_task_update(task, "subtask_status", subtask_id)
+    
+    # Return the updated subtask checkbox
+    return subtask_checkbox(subtask)
 
 @rt('/tasks/{task_id}/note', methods=['POST'])
 async def update_task_note(req, session, task_id: str):
@@ -130,6 +138,48 @@ async def update_task_note(req, session, task_id: str):
         db.add_history(history)
         return 'Note updated'
     return 'Failed to update note', 500
+
+@rt("/tasks/{task_id}/notes/update", methods=["POST"])
+async def update_note(request: Request, task_id: str):
+    """Update task note"""
+    print(f"Received note update request for task {task_id}")
+    form = await request.form()
+    note = form.get("note", "")
+    
+    task = db.get_task(task_id)
+    if not task:
+        return "Task not found", 404
+    
+    # Update task notes
+    task.notes = note
+    success = db.update_task(task)
+    
+    if success:
+        # Broadcast note update to all connected clients
+        await sse_manager.broadcast_task_update(task, "task_note")
+        return "OK"
+    return "Failed to update note for task {task_id}", 500
+
+@rt("/tasks/stream")
+async def stream_tasks():
+    """Single SSE endpoint for all task updates"""
+    async def event_generator():
+        queue = asyncio.Queue()
+        sse_manager.add_connection(queue)
+        
+        try:
+            while True:
+                event = await queue.get()
+                yield event
+        except asyncio.CancelledError:
+            pass
+        finally:
+            sse_manager.remove_connection(queue)
+    
+    return EventSourceResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
 
 @rt('/tasks/{task_id}/subtasks', methods=['POST'])
 async def add_subtask(req, task_id: str):

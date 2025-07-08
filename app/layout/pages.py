@@ -17,7 +17,11 @@ from components.navigation import TopNav
 def TasksPage(tasks: list[Task]) -> AppContainer:
     """Tasks page layout with container and navigation"""
     return AppContainer(
-        Div(cls="container mx-auto p-4 max-w-4xl")(
+        Div(
+            cls="container mx-auto p-4 max-w-4xl",
+            hx_ext="sse",
+            sse_connect="/tasks/stream"
+        )(
             Div(cls="flex justify-between items-center mb-6")(
                 TopNav("Tasks"),
                 Button(
