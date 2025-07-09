@@ -1,15 +1,15 @@
 // Quantity adjustment functions
 function incrementQuantity() {
     const input = document.getElementById('quantity');
-    input.value = parseInt(input.value) + 1;
+    const currentValue = parseFloat(input.value) || 0;
+    input.value = (currentValue + 1).toFixed(2);
 }
 
 function decrementQuantity() {
     const input = document.getElementById('quantity');
-    const newValue = parseInt(input.value) - 1;
-    if (newValue >= 1) {
-        input.value = newValue;
-    }
+    const currentValue = parseFloat(input.value) || 0;
+    const newValue = currentValue - 1;
+    input.value = newValue.toFixed(2); // Allow negative values
 }
 
 // Handle form success

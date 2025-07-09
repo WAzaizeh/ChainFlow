@@ -1,5 +1,35 @@
 from fasthtml.common import *
-from models.inventory import InventoryItem
+from models.inventory import (
+    InventoryItem,
+    ItemUnit,
+    StorageLocation
+)
+from typing import List
+
+from db.inventory_db import InventoryDatabase
+inventory_db = InventoryDatabase()
+
+def storage_location_selector(current_storage: str = None) -> Div:
+    """Storage location button selector"""
+    default_storage = current_storage or StorageLocation.KITCHEN.value
+    return Div(cls="space-y-2")(
+        Label("Storage Location:", cls="block text-sm font-medium text-gray-700"),
+        Div(cls="flex gap-2 flex-wrap")(
+            *(
+                Button(
+                    location.value.replace('_', ' ').title(),
+                    type="button",
+                    name="storage",
+                    value=location.value,
+                    onclick=f"selectStorage('{location.value}')",
+                    cls=f"px-4 py-2 rounded-lg border transition-colors duration-200 " +
+                        ("bg-blue-500 text-white border-blue-500" if default_storage == location.value
+                         else "bg-white text-gray-700 border-gray-300 hover:bg-gray-50")
+                ) for location in StorageLocation
+            )
+        ),
+        Input(type="hidden", name="storage", id="selected-storage", value=current_storage or StorageLocation.WAREHOUSE.value)
+    )
 
 def inventory_search_bar() -> Div:
     """Search bar with live suggestions"""
@@ -49,10 +79,10 @@ def search_result_item(item: InventoryItem) -> Button:
         cls="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors duration-150"
     )
 
-def quantity_adjuster(item: InventoryItem = None) -> Form:
-    """Quantity adjuster with +/- buttons and unit selector"""
+def quantity_adjuster(item: InventoryItem, secondary_units: List[ItemUnit]) -> Form:
+    """Quantity adjuster with proper unit handling and storage selection"""
     if not item:
-        return Div()  # Return empty div if no item selected
+        return Div()
         
     return Form(
         id="quantity-form",
@@ -64,7 +94,7 @@ def quantity_adjuster(item: InventoryItem = None) -> Form:
         hx_on="""htmx:afterRequest: if(event.detail.successful) { 
                document.getElementById('success-message').classList.add('show');
                document.getElementById('search-form').reset();
-               document.getElementById('search-results').innerHTML = '';
+               document.getElementById('search-list').innerHTML = '';
                document.getElementById('item-form').innerHTML = '';
                setTimeout(() => {
                    document.getElementById('success-message').classList.remove('show');
@@ -72,92 +102,98 @@ def quantity_adjuster(item: InventoryItem = None) -> Form:
            }""",
         cls="space-y-4"
     )(
-        # Item name display
-        H3(item.name, cls="text-lg font-medium"),
-        # Quantity adjuster
-        Div(cls="flex items-center justify-center gap-2")(
-            Button(
-                "−",
-                type="button",
-                onclick="decrementQuantity()",
-                cls="w-10 h-10 rounded-full bg-gray-200 font-bold"
+        H3(f"{item.name}", cls="text-lg font-medium"),
+        P(f"Current: {item.quantity} {item.primary_unit}", cls="text-sm text-gray-600"),
+
+        # Quantity adjuster (allows negative values)
+        Div(cls="space-y-2")(
+            Label("Quantity Change:", cls="block text-sm font-medium text-gray-700"),
+            Div(cls="flex items-center justify-center gap-2")(
+                Button("−", type="button", onclick="decrementQuantity()", 
+                       cls="w-10 h-10 rounded-full bg-gray-200 font-bold"),
+                Input(type="number", id="quantity", name="quantity", value="0", 
+                      step="0.01", cls="w-24 text-center border rounded-lg"),
+                Button("+", type="button", onclick="incrementQuantity()", 
+                       cls="w-10 h-10 rounded-full bg-gray-200 font-bold")
             ),
-            Input(
-                type="number",
-                id="quantity",
-                name="quantity",
-                value="1",
-                min="1",
-                cls="w-20 text-center border rounded-lg"
-            ),
-            Button(
-                "+",
-                type="button",
-                onclick="incrementQuantity()",
-                cls="w-10 h-10 rounded-full bg-gray-200 font-bold"
+            P(cls="text-xs text-gray-500 text-center")(
+                "Enter positive numbers to add, negative to subtract"
             )
         ),
-        # Unit selector if applicable
-        Div(cls="flex justify-center")(
-            Select(
-                name="unit",
-                cls="border rounded-lg px-3 py-2"
-            )(
-                Option(value=unit, selected=not item.units)(unit) for unit in item.units
+        
+         # Unit selector
+        Div(cls="space-y-2")(
+            Label("Unit:", cls="block text-sm font-medium text-gray-700"),
+            Select(name="unit", cls="w-full border rounded-lg px-3 py-2")(
+                Option(value=item.primary_unit, selected=True)(f"{item.primary_unit} (primary)"),
+                *(Option(value=unit.unit_name)(
+                    f"{unit.unit_name} (1 = {unit.conversion_to_primary} {item.primary_unit})"
+                ) for unit in secondary_units)
             )
         ),
-        # Add loading indicator
-        Div(
-            id="submit-indicator",
-            cls="htmx-indicator"
-        )("Updating..."),
-        # Submit button
-        Button(
-            type="submit",
-            cls="w-full mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg \
-                hover:bg-blue-600"
-        )("Update Inventory")
+        
+        Button(type="submit", cls="w-full mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600")(
+            "Update Inventory"
+        ),
+        
+        Script("""
+            function selectStorage(storage) {
+                // Remove active class from all buttons
+                document.querySelectorAll('button[name="storage"]').forEach(btn => {
+                    btn.className = btn.className.replace('bg-blue-500 text-white border-blue-500', 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50');
+                });
+                
+                // Add active class to clicked button
+                event.target.className = event.target.className.replace('bg-white text-gray-700 border-gray-300 hover:bg-gray-50', 'bg-blue-500 text-white border-blue-500');
+                
+                // Update hidden input
+                document.getElementById('selected-storage').value = storage;
+            }
+        """)
     )
 
-def inventory_table_view(items: list[InventoryItem]) -> Div:
-    """Render inventory items in a responsive table/card view"""
+def inventory_table_view() -> Div:
+    """Enhanced table view showing storage location"""
+    items = inventory_db.get_all_items()
     return Div(
-        # Desktop Table View (hidden on mobile)
         Div(cls="hidden md:block overflow-x-auto")(
             Table(cls="table table-pin-rows table-pin-cols w-full")(
-                Thead(
-                    Tr(
-                        Th("Item Name"),
-                        Th("Quantity"),
-                        Th("Unit"),
-                        Th("Last Updated")
-                    )
-                ),
+                Thead(Tr(
+                    Th("Item Name"), 
+                    Th("Quantity"), 
+                    Th("Branch"), 
+                    Th("Storage"), 
+                    Th("Last Updated")
+                )),
                 Tbody(
                     *(
                         Tr(
                             Td(item.name),
-                            Td(str(item.quantity)),
-                            Td(item.units or "-"),
-                            Td(item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-")
+                            Td(f"{item.quantity} {item.primary_unit}"),
+                            Td(item.branch),
+                            Td(item.storage.replace('_', ' ').title()),
+                            print(item.last_updated),
+                            Td((item.last_updated) if item.last_updated else "-")
                         ) for item in items
                     )
                 )
             )
         ),
-        # Mobile Card View (hidden on desktop)
+        # Mobile Card View
         Div(cls="grid grid-cols-1 gap-4 md:hidden")(
             *(
                 Div(cls="bg-white rounded-lg shadow p-4 space-y-2")(
                     Div(cls="font-medium text-lg text-gray-900")(item.name),
                     Div(cls="grid grid-cols-2 gap-2 text-sm")(
                         Div(cls="text-gray-500")("Quantity:"),
-                        Div(cls="text-gray-900")(str(item.quantity)),
-                        Div(cls="text-gray-500")("Unit:"),
-                        Div(cls="text-gray-900")(item.units or "-"),
+                        Div(cls="text-gray-900")(f"{item.quantity} {item.primary_unit}"),
+                        Div(cls="text-gray-500")("Branch:"),
+                        Div(cls="text-gray-900")(item.branch),
+                        Div(cls="text-gray-500")("Storage:"),
+                        Div(cls="text-gray-900")(item.storage.replace('_', ' ').title()),
                         Div(cls="text-gray-500")("Last Updated:"),
                         Div(cls="text-gray-900")(
-                            item.last_updated.strftime("%Y-%m-%d %H:%M") if item.last_updated else "-"
+                            item.last_updated if item.last_updated else "-"
                         )
                     )
                 ) for item in items
@@ -168,6 +204,7 @@ def inventory_table_view(items: list[InventoryItem]) -> Div:
 def inventory_edit_view() -> Div:
     """Container for inventory edit form"""
     return Div(cls="p-4")(
+        storage_location_selector(),
         inventory_search_bar(),
         Div(id="item-form", cls="mt-6")
     )
@@ -223,7 +260,7 @@ def unit_input_component(tier: int = 0) -> Div:
     )
 
 def inventory_add_item() -> Form:
-    """Form to add a new inventory item"""
+    """Form to add a new inventory item with storage selection"""
     return Form(
         id="add-item-form",
         hx_post="/inventory/add",
@@ -247,16 +284,108 @@ def inventory_add_item() -> Form:
             type="number", 
             name="quantity", 
             placeholder="Quantity", 
-            min="1", 
+            min="0.01",
+            step="0.01", 
             value="1", 
             required=True, 
             cls="w-full p-3 border rounded-lg"
         ),
+        
+        # Storage location selector
+        storage_location_selector(),
+        
         Div(cls="space-y-4")(
             unit_input_component(tier=0)
         ),
         Button(
             type="submit",
             cls="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
-        )("Add Item")
+        )("Add Item"),
+        
+        Script("""
+            function selectStorage(storage) {
+                // Remove active class from all buttons
+                document.querySelectorAll('button[name="storage"]').forEach(btn => {
+                    btn.className = btn.className.replace('bg-blue-500 text-white border-blue-500', 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50');
+                });
+                
+                // Add active class to clicked button
+                event.target.className = event.target.className.replace('bg-white text-gray-700 border-gray-300 hover:bg-gray-50', 'bg-blue-500 text-white border-blue-500');
+                
+                // Update hidden input
+                document.getElementById('selected-storage').value = storage;
+            }
+        """)
+    )
+
+def inventory_tabs(is_admin: bool = False) -> Div:
+    """Render the inventory tabs with lazy loading"""
+    return Div(cls="flex flex-col gap-2")(
+        # Tabs
+        Div(
+            role="tablist",
+            id="inventory-tabs",
+            cls="tabs tabs-lifted"
+        )(
+            Input(
+                type="radio",
+                name="inventory_tab",
+                role="tab",
+                cls="tab",
+                id="edit-tab",
+                checked=True,
+                aria_label="Edit",
+                hx_trigger="change",
+                hx_get="/inventory/tab/edit",
+                hx_target="#edit-content"
+            ),
+            Div(
+                role="tabpanel",
+                cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                id="edit-content"
+            )(
+                # Load edit content immediately since it's the default tab
+                inventory_edit_view()
+            ),
+            Input(
+                type="radio",
+                name="inventory_tab",
+                role="tab",
+                cls="tab",
+                id="view-tab",
+                aria_label="View",
+                hx_trigger="change",
+                hx_get="/inventory/tab/view",
+                hx_target="#view-content"
+            ),
+            Div(
+                role="tabpanel",
+                cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                id="view-content"
+            )(
+                # Empty initially - will be loaded when tab is clicked
+                P("Loading...", cls="text-center text-gray-500")
+            ),
+            *([] if not is_admin else [
+                Input(
+                    type="radio",
+                    name="inventory_tab",
+                    role="tab",
+                    cls="tab",
+                    id="add-tab",
+                    aria_label="Add New",
+                    hx_trigger="change",
+                    hx_get="/inventory/tab/add",
+                    hx_target="#add-content"
+                ),
+                Div(
+                    role="tabpanel",
+                    cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
+                    id="add-content"
+                )(
+                    # Empty initially - will be loaded when tab is clicked
+                    P("Loading...", cls="text-center text-gray-500")
+                ),
+            ])
+        )
     )

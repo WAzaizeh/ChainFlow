@@ -1,15 +1,9 @@
 from fasthtml.common import *
 from components.page import AppContainer
-from components.navigation import BottomNav
 from components.icon import Icon
 from models.task import Task
 from .tasks import tasks_container
-from models.inventory import InventoryItem
-from layout.inventory import (
-    inventory_edit_view,
-    inventory_table_view,
-    inventory_add_item
-)
+from layout.inventory import inventory_tabs
 from layout.orders import render_start_order_tab, render_orders_list
 from models.order import Order
 from components.navigation import TopNav
@@ -40,7 +34,7 @@ def TasksPage(tasks: list[Task]) -> AppContainer:
         active_button_index=2  # Assuming tasks is the second nav item
     )
 
-def InventoryPage(items: list[InventoryItem]) -> Div:
+def InventoryPage(is_admin: bool = False) -> Div:
     """Main inventory page with tabs"""
     return AppContainer( 
         Div(cls="container mx-auto p-4 max-w-4xl")(
@@ -54,59 +48,8 @@ def InventoryPage(items: list[InventoryItem]) -> Div:
                 style="pointer-events: none"
             )("Inventory Updated Successfully"),
             
-            # Tab Container using DaisyUI v4 radio tabs
-            Div(cls="flex flex-col gap-2")(
-                # Tabs
-                Div(
-                    role="tablist",
-                    id="inventory-tabs",
-                    cls="tabs tabs-lifted"
-                    )(
-                    Input(
-                        type="radio",
-                        name="inventory_tab",
-                        role="tab",
-                        cls="tab",
-                        id="edit-tab",
-                        checked=True,
-                        aria_label="Edit"
-                    ),
-                    Div(
-                        role="tabpanel",
-                        cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
-                        id="edit-content",
-                        *inventory_edit_view()
-                    ),
-                    Input(
-                        type="radio",
-                        name="inventory_tab",
-                        role="tab",
-                        cls="tab",
-                        id="view-tab",
-                        aria_label="View"
-                    ),
-                    Div(
-                        role="tabpanel",
-                        cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
-                        id="view-content",
-                        *inventory_table_view(items)
-                    ),
-                    Input(
-                        type="radio",
-                        name="inventory_tab",
-                        role="tab",
-                        cls="tab",
-                        id="add-tab",
-                        aria_label="Add New"
-                    ),
-                    Div(
-                        role="tabpanel",
-                        cls="tab-content bg-base-100 border-base-300 rounded-box p-6",
-                        id="add-content",
-                        *inventory_add_item()
-                    ),
-                )
-            )
+            # Tab Container
+            inventory_tabs(is_admin),
     ),
     active_button_index=3 # Assuming inventory is the third nav item
     )
