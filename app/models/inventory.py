@@ -23,8 +23,12 @@ class InventoryItem:
     branch: Branch = Branch.Plano  # Default branch
 
     @classmethod
-    def create_new(cls, name: str, quantity: float, primary_unit: str, 
-                   branch: str = "main", storage: str = StorageLocation.WAREHOUSE.value) -> 'InventoryItem':
+    def create_new(
+            cls, name: str, quantity: float, primary_unit: str, 
+            branch: str = Branch.Plano.value,
+            storage: str = StorageLocation.WAREHOUSE.value,
+            last_updated: Optional[datetime] = None
+            ) -> 'InventoryItem':
         """Create a new inventory item"""
         return cls(
             id=ID.unique(),
@@ -33,7 +37,7 @@ class InventoryItem:
             primary_unit=primary_unit,
             branch=branch,
             storage=storage,
-            last_updated=datetime.now()
+            last_updated=last_updated if last_updated else datetime.now().isoformat()
         )
     
     @classmethod
@@ -69,14 +73,18 @@ class ItemUnit:
     last_updated: datetime = None
 
     @classmethod
-    def create_new(cls, item_id: str, unit_name: str, conversion_to_primary: float) -> 'ItemUnit':
+    def create_new(
+        cls, item_id: str, unit_name: str,
+        conversion_to_primary: float,
+        last_updated: Optional[datetime] = None
+        ) -> 'ItemUnit':
         """Create a new secondary unit for an item"""
         return cls(
             id=ID.unique(),
             item_id=item_id,
             unit_name=unit_name,
             conversion_to_primary=conversion_to_primary,
-            last_updated=datetime.now()
+            last_updated=last_updated if last_updated else datetime.now().isoformat()
         )
 
     @classmethod

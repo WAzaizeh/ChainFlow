@@ -2,7 +2,13 @@ from typing import List, Optional, Dict
 from datetime import datetime
 from appwrite.query import Query
 from appwrite.id import ID
-from models.inventory import InventoryItem, InventoryChange, ItemUnit, StorageLocation
+from models.inventory import (
+    InventoryItem,
+    InventoryChange,
+    ItemUnit,
+    StorageLocation,
+    Branch
+)
 from core.appwrite_client import get_database
 from core.config import settings
 
@@ -23,6 +29,18 @@ class InventoryDatabase:
             result = self.database.list_documents(
                 database_id=self.database_id,
                 collection_id='inventory'
+            )
+            return [InventoryItem.from_dict(doc) for doc in result['documents']]
+        except Exception as e:
+            return []
+        
+    def get_items_by_storage(self, storage: str) -> List[InventoryItem]:
+        """Get all inventory items from a specific storage location"""
+        try:
+            result = self.database.list_documents(
+                database_id=self.database_id,
+                collection_id='inventory',
+                queries=[Query.equal('storage', storage)]
             )
             return [InventoryItem.from_dict(doc) for doc in result['documents']]
         except Exception as e:
@@ -120,15 +138,18 @@ class InventoryDatabase:
             print(f"Error updating item {item_id}: {e}")
             return False
     
-    def add_item_with_units(self, name: str, initial_quantity: float, 
-                           primary_unit: str, storage: str = StorageLocation.KITCHEN.value,
-                           additional_units: List[Dict] = None) -> str:
+    def add_item_with_units(
+            self, item_name: str, initial_quantity: float, 
+            primary_unit: str, storage: str = StorageLocation.KITCHEN.value,
+            branch: str = Branch.Plano.value, additional_units: List[Dict] = None
+            ) -> str:
         """Add new item with its units and storage location"""
         # Create the item
         item = InventoryItem.create_new(
-            name=name, 
+            name=item_name, 
             quantity=initial_quantity, 
             primary_unit=primary_unit,
+            branch=branch,
             storage=storage
         )
         

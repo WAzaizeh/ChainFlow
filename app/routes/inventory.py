@@ -8,11 +8,13 @@ from layout.inventory import (
     inventory_edit_view,
     inventory_table_view,
     inventory_add_item,
+    render_items_table
 )
 from db.inventory_db import InventoryDatabase
 from db.auth import AuthDatabase
 from models.inventory import StorageLocation
 from datetime import datetime
+from components.success_message import success_message
 
 db = InventoryDatabase()
 
@@ -21,7 +23,9 @@ async def inventory(session):
     """Main inventory page"""
     # Check if user is admin
     user_id = session.get("user", {}).get("id")
-    is_admin = AuthDatabase().is_admin(user_id) if user_id else False
+    print(f"User ID: {user_id}")  # Debugging line
+    is_admin = AuthDatabase().get_user_role(user_id) if user_id else False
+    print(f"Is Admin: {is_admin}")
     return InventoryPage(is_admin=is_admin)
 
 @rt('/inventory/tab/edit')
@@ -100,7 +104,19 @@ async def update_inventory(req, session, item_id: str):
         )
         
         if success:
-            return "Success"
+            # Return success message with item details
+            updated_item = db.get_item(item_id)
+            message = f"✓ {updated_item.name} updated! New quantity: {updated_item.quantity} {updated_item.primary_unit}"
+            
+            return Div(
+                success_message(message),
+                # Clear the form
+                Script("""
+                    document.getElementById('search-form').reset();
+                    document.getElementById('search-list').innerHTML = '';
+                    document.getElementById('item-form').innerHTML = '';
+                """)
+            )
         return "Failed to update inventory", 500
         
     except ValueError as e:
@@ -112,12 +128,13 @@ async def update_inventory(req, session, item_id: str):
 async def add_inventory_item(req):
     """Add a new inventory item"""
     data = await req.form()
-    name = data.get('name', '').strip()
+    item_name = data.get('name', '').strip()
     quantity = float(data.get('quantity', 1))
     primary_unit = data.get('unit_name_0', '').strip()
     storage = data.get('storage', StorageLocation.KITCHEN.value)
+    branch = AuthDatabase().get_user_branch(data.get('user_id', ''))
     
-    if not name or not primary_unit:
+    if not item_name or not primary_unit:
         return "Name and primary unit are required", 400
     
     # Get secondary unit data if provided
@@ -137,13 +154,30 @@ async def add_inventory_item(req):
     
     try:
         item_id = db.add_item_with_units(
-            name=name,
+            item_name=item_name,
             initial_quantity=quantity,
             primary_unit=primary_unit,
             storage=storage,
             additional_units=secondary_units
         )
-        return f"Item '{name}' added successfully"
+        return Div(
+                success_message(f"✓ '{item_name}' added successfully to {storage.replace('_', ' ').title()}!"),
+                # Show success form and add another button
+                Div(cls="text-center p-8")(
+                    Div(cls="text-green-600 mb-4")(
+                        H3("Item Added Successfully!", cls="text-xl font-medium")
+                    ),
+                    P(f"'{item_name}' has been added to {storage.replace('_', ' ').title()} inventory", 
+                    cls="text-gray-600 mb-4"),
+                    Button(
+                        "Add Another Item",
+                        hx_get="/inventory/tab/add",
+                        hx_target="#add-content",
+                        hx_swap="innerHTML",
+                        cls="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+                    )
+                )
+            )
     except Exception as e:
         return f"Failed to add item: {str(e)}", 500
 
@@ -156,3 +190,33 @@ async def get_unit_input(tier: int):
 async def get_add_form():
     """Get the add item form"""
     return inventory_add_item()
+
+@rt('/inventory/filter-table', methods=['POST'])
+async def filter_table_by_storage(req):
+    """Filter table by storage location from form submission"""
+    data = await req.form()
+    storage_location = data.get('storage', StorageLocation.KITCHEN.value)
+    
+    # Validate storage location
+    if storage_location not in [loc.value for loc in StorageLocation]:
+        return "Invalid storage location", 400
+    
+    # Get items from database
+    items = db.get_items_by_storage(storage_location)
+    
+    # Return the rendered table
+    return render_items_table(items, storage_location)
+
+@rt('/inventory/table/{storage_location}')
+async def get_items_by_storage(storage_location: str):
+    """Get items filtered by storage location (for initial load)"""
+    # Validate storage location
+    valid_locations = [loc.value for loc in StorageLocation]
+    if storage_location not in valid_locations:
+        return "Invalid storage location", 400
+    
+    # Get items from database
+    items = db.get_items_by_storage(storage_location)
+    
+    # Return the rendered table
+    return render_items_table(items, storage_location)

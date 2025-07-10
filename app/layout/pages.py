@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from components.page import AppContainer
 from components.icon import Icon
+from components.success_message import success_message_placeholder
 from models.task import Task
 from .tasks import tasks_container
 from layout.inventory import inventory_tabs
@@ -39,15 +40,8 @@ def InventoryPage(is_admin: bool = False) -> Div:
     return AppContainer( 
         Div(cls="container mx-auto p-4 max-w-4xl")(
             TopNav("Inventory"),
-            # Success message
-            Div(
-                id="success-message",
-                cls="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 \
-                    text-white px-6 py-3 rounded-lg shadow-lg opacity-0 transition-opacity \
-                    duration-200 z-50",
-                style="pointer-events: none"
-            )("Inventory Updated Successfully"),
-            
+            # Success message placeholder
+            success_message_placeholder(),
             # Tab Container
             inventory_tabs(is_admin),
     ),
@@ -72,14 +66,8 @@ def OrdersPage(orders: list[Order], draft_order: Order, is_admin: bool = False) 
     return AppContainer(
             Div(cls="container mx-auto p-4 max-w-4xl")(
                 TopNav(title="Orders"),
-                # Success message
-                Div(
-                    id="success-message",
-                    cls="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 \
-                        text-white px-6 py-3 rounded-lg shadow-lg opacity-0 transition-opacity \
-                        duration-200 z-50",
-                    style="pointer-events: none"
-                )("Order Updated Successfully"),
+                # Success message placeholder
+                success_message_placeholder(),
                 
                 # Tab Container
                 Div(cls="flex flex-col gap-2")(

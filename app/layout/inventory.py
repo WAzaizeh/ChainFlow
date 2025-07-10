@@ -5,6 +5,7 @@ from models.inventory import (
     StorageLocation
 )
 from typing import List
+from components.success_message import success_message
 
 from db.inventory_db import InventoryDatabase
 inventory_db = InventoryDatabase()
@@ -90,16 +91,6 @@ def quantity_adjuster(item: InventoryItem, secondary_units: List[ItemUnit]) -> F
         hx_swap="none",
         hx_trigger="submit",
         hx_indicator="#submit-indicator",
-        hx_target="this",
-        hx_on="""htmx:afterRequest: if(event.detail.successful) { 
-               document.getElementById('success-message').classList.add('show');
-               document.getElementById('search-form').reset();
-               document.getElementById('search-list').innerHTML = '';
-               document.getElementById('item-form').innerHTML = '';
-               setTimeout(() => {
-                   document.getElementById('success-message').classList.remove('show');
-               }, 2000);
-           }""",
         cls="space-y-4"
     )(
         H3(f"{item.name}", cls="text-lg font-medium"),
@@ -135,7 +126,48 @@ def quantity_adjuster(item: InventoryItem, secondary_units: List[ItemUnit]) -> F
         Button(type="submit", cls="w-full mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600")(
             "Update Inventory"
         ),
+    )
+
+def inventory_edit_view() -> Div:
+    """Container for inventory edit form"""
+    return Div(cls="p-4")(
+        storage_location_selector(),
+        inventory_search_bar(),
+        Div(id="item-form", cls="mt-6")
+    )
+
+def inventory_table_view() -> Div:
+    """Enhanced table view with form-wrapped storage filtering"""
+    return Div(
+        id="table-view-container",
+        cls="space-y-4"
+    )(
+        # Storage filter form
+        Form(
+            id="storage-filter-form",
+            hx_post="/inventory/filter-table",
+            hx_target="#table-content",
+            hx_swap="innerHTML",
+            hx_trigger="click from:button[name='storage']",
+            cls="bg-gray-50 p-4 rounded-lg"
+        )(
+            storage_location_selector(StorageLocation.KITCHEN.value),  # Default to kitchen
+            P(cls="text-xs text-gray-500 mt-2")(
+                "Click a storage location to filter items"
+            )
+        ),
         
+        # Table content container
+        Div(
+            id="table-content",
+            hx_get="/inventory/table/kitchen",  # Load kitchen items by default
+            hx_trigger="load",
+            hx_swap="innerHTML"
+        )(
+            P("Loading items...", cls="text-center text-gray-500 p-4")
+        ),
+        
+        # Keep the existing JavaScript for visual button states
         Script("""
             function selectStorage(storage) {
                 // Remove active class from all buttons
@@ -148,14 +180,25 @@ def quantity_adjuster(item: InventoryItem, secondary_units: List[ItemUnit]) -> F
                 
                 // Update hidden input
                 document.getElementById('selected-storage').value = storage;
+                
+                // Trigger the form submission
+                document.getElementById('storage-filter-form').dispatchEvent(new Event('change', { bubbles: true }));
             }
         """)
     )
 
-def inventory_table_view() -> Div:
-    """Enhanced table view showing storage location"""
-    items = inventory_db.get_all_items()
+def render_items_table(items: List[InventoryItem], storage_location: str) -> Div:
+    """Render the actual items table"""
+    if not items:
+        return Div(cls="text-center p-8")(
+            P(f"No items found in {storage_location.replace('_', ' ').title()} storage", 
+              cls="text-gray-500"),
+            P("Try selecting a different storage location or add some items", 
+              cls="text-sm text-gray-400")
+        )
+    
     return Div(
+        # Desktop Table View
         Div(cls="hidden md:block overflow-x-auto")(
             Table(cls="table table-pin-rows table-pin-cols w-full")(
                 Thead(Tr(
@@ -172,8 +215,7 @@ def inventory_table_view() -> Div:
                             Td(f"{item.quantity} {item.primary_unit}"),
                             Td(item.branch),
                             Td(item.storage.replace('_', ' ').title()),
-                            print(item.last_updated),
-                            Td((item.last_updated) if item.last_updated else "-")
+                            Td(item.last_updated if item.last_updated else "-")
                         ) for item in items
                     )
                 )
@@ -198,15 +240,12 @@ def inventory_table_view() -> Div:
                     )
                 ) for item in items
             )
+        ),
+        # Summary
+        Div(cls="mt-4 p-3 bg-blue-50 rounded-lg")(
+            P(f"Showing {len(items)} item{'s' if len(items) != 1 else ''} in {storage_location.replace('_', ' ').title()}", 
+              cls="text-sm text-blue-700")
         )
-    )
-
-def inventory_edit_view() -> Div:
-    """Container for inventory edit form"""
-    return Div(cls="p-4")(
-        storage_location_selector(),
-        inventory_search_bar(),
-        Div(id="item-form", cls="mt-6")
     )
 
 def unit_input_component(tier: int = 0) -> Div:
@@ -265,11 +304,7 @@ def inventory_add_item() -> Form:
         id="add-item-form",
         hx_post="/inventory/add",
         hx_swap="innerHTML",
-        hx_target="#item-form",
-        hx_on="htmx:afterRequest: if(event.detail.successful) { \
-            document.getElementById('success-message').classList.add('show'); \
-            setTimeout(() => { document.getElementById('success-message').classList.remove('show'); }, 2000); \
-        }",
+        hx_target="#add-content",
         cls="space-y-4"
     )(
         H3("Add New Item", cls="text-lg font-medium"),
@@ -280,6 +315,8 @@ def inventory_add_item() -> Form:
             required=True, 
             cls="w-full p-3 border rounded-lg"
         ),
+        # Starting quantity input
+        H4("Starting Quantity", cls="text-sm text-gray-600"),
         Input(
             type="number", 
             name="quantity", 
@@ -290,13 +327,12 @@ def inventory_add_item() -> Form:
             required=True, 
             cls="w-full p-3 border rounded-lg"
         ),
-        
-        # Storage location selector
-        storage_location_selector(),
-        
         Div(cls="space-y-4")(
             unit_input_component(tier=0)
-        ),
+        ),        
+        # Storage location selector
+        storage_location_selector(),
+
         Button(
             type="submit",
             cls="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
@@ -387,5 +423,19 @@ def inventory_tabs(is_admin: bool = False) -> Div:
                     P("Loading...", cls="text-center text-gray-500")
                 ),
             ])
-        )
+        ),
+        Script("""
+            function selectStorage(storage) {
+                // Remove active class from all buttons
+                document.querySelectorAll('button[name="storage"]').forEach(btn => {
+                    btn.className = btn.className.replace('bg-blue-500 text-white border-blue-500', 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50');
+                });
+                
+                // Add active class to clicked button
+                event.target.className = event.target.className.replace('bg-white text-gray-700 border-gray-300 hover:bg-gray-50', 'bg-blue-500 text-white border-blue-500');
+                
+                // Update hidden input
+                document.getElementById('selected-storage').value = storage;
+            }
+        """)
     )
