@@ -56,11 +56,21 @@ async def login_post(req, session, account: Account):
 @rt("/login/google")
 def google_kickoff(req):
     """Redirect to Google OAuth2 login"""
-    # Get the host from the request or fallback to settings
-
-    request_host = req.headers.get('host', settings.APP_URL.replace('http://', ''))
-    base_url = f"http://{request_host}"
+    # Get the host from the request
+    request_host = req.headers.get('host', settings.APP_URL.replace('http://', '').replace('https://', ''))
     
+    # Determine protocol based on host or headers
+    if (request_host.startswith('localhost') or 
+        request_host.startswith('127.0.0.1') or 
+        request_host.startswith('0.0.0.0')):
+        protocol = 'http'
+    else:
+        # Check for forwarded protocol headers (common in reverse proxies)
+        protocol = (req.headers.get('x-forwarded-proto') or 
+                   req.headers.get('x-forwarded-protocol') or 
+                   'https')
+    
+    base_url = f"{protocol}://{request_host}"
     oauth_url = google_oauth_url(base_url)
 
     return RedirectResponse(

@@ -125,3 +125,6 @@ llm-*.txt
 
 # development tests
 dev_tests/
+
+# untrack github actions
+.github/workflows/task-management.yml
