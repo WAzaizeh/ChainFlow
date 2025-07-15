@@ -30,6 +30,7 @@ headers = (
     ),
     *fetch_static_files(),
     Script(src="https://unpkg.com/htmx-ext-sse@2.2.1/sse.js"),
+    Script(src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"),
 )
 
 # Auth middleware

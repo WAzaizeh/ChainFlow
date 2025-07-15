@@ -28,6 +28,20 @@ def login_get(req):
     )
     return Titled(
         "Sign in",
+        # Clear any existing session on login page load
+        NotStr(f"""
+          <script>
+            // Clear any existing session on login page load
+            const {{ Client, Account }} = Appwrite;
+            const client = new Client()
+              .setEndpoint("{settings.APPWRITE_ENDPOINT}")
+              .setProject("{settings.APPWRITE_PROJECT_ID}");
+            const account = new Account(client);
+
+            // Clear session silently
+            account.deleteSession('current').catch(() => {{}});
+          </script>
+        """),
         err,
         Form(method="post", cls="container flex flex-col gap-3")(
             Fieldset(
@@ -99,7 +113,6 @@ async def oauth_callback(req: Request, session):
     # Handle client-side session creation and JWT generation
     return Titled(
         "Completing sign-in...",
-        Script(src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"),
         NotStr(f"""
           <script type="module">
             const {{ Client, Account }} = Appwrite;
