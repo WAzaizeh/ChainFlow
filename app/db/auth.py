@@ -104,7 +104,6 @@ class AuthDatabase:
 
     def get_user_role(self, user_id: str) -> UserRole:
         """Get user role based on their team membership"""
-        return UserRole.ADMIN
         try:
             user_info = self.users.get(user_id)
             if 'labels' not in user_info:
