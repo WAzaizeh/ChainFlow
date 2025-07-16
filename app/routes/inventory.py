@@ -15,6 +15,7 @@ from db.auth import AuthDatabase
 from models.inventory import StorageLocation
 from datetime import datetime
 from components.success_message import success_message
+from models.user import UserRole
 
 db = InventoryDatabase()
 
@@ -23,9 +24,7 @@ async def inventory(session):
     """Main inventory page"""
     # Check if user is admin
     user_id = session.get("user", {}).get("id")
-    print(f"User ID: {user_id}")  # Debugging line
-    is_admin = AuthDatabase().get_user_role(user_id) if user_id else False
-    print(f"Is Admin: {is_admin}")
+    is_admin = AuthDatabase().get_user_role(user_id) == UserRole.ADMIN if user_id else False
     return InventoryPage(is_admin=is_admin)
 
 @rt('/inventory/tab/edit')
