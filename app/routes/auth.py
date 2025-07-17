@@ -154,16 +154,26 @@ async def oauth_token(req, session):
             "mugalli789@gmail.com"
         ]
         
-        if user_data["email"] not in ALLOWED_EMPLOYEES:
-            logger.warning(f"Access denied for user: {user_data['email']}")
+        user_email = user_data.get("email")
+        logger.debug(f"🔧 Debug: Checking access for email: {user_email}")
+        logger.debug(f"🔧 Debug: Allowed employees: {ALLOWED_EMPLOYEES}")
+        
+        if user_email not in ALLOWED_EMPLOYEES:
+            logger.warning(f"🚫 Access denied for user: {user_email}")
+            logger.debug(f"🔧 Debug: Email '{user_email}' not in allowed list")
+            
             return RedirectResponse(
                 "/login?failed=1&error=Access denied. Contact admin for access.",
                 status_code=303
             )
         
+        # Store user data in session
         session["user"] = user_data
-        logger.info(f"FastHTML session set for user: {user_data['email']}")
+        logger.info(f"✅ FastHTML session set for user: {user_email}")
+        logger.debug(f"🔧 Debug: Session data keys: {list(session.keys())}")
+                
         return RedirectResponse("/", status_code=303)
+    
     except Exception as e:
         logger.error(f"OAuth token verification failed: {str(e)}")
         return RedirectResponse(
