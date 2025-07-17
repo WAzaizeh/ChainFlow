@@ -85,7 +85,7 @@ async def oauth_callback(req: Request, session):
     secret = params.get("secret")  # Changed back to "secret" - this is what Appwrite sends
 
     if not user_id or not secret:
-        logger.error(f"OAuth callback missing required parameters. URL: {req.url}, Params: {dict(req.query_params)}")
+        print(f"OAuth callback missing required parameters. URL: {req.url}, Params: {dict(req.query_params)}")
 
         error_msg = "OAuth callback missing required parameters"
         return RedirectResponse(
@@ -141,11 +141,11 @@ async def oauth_token(req, session):
 
     jwt = form.get("jwt")
     if not jwt:
-        logger.error("OAuth token endpoint called without JWT")
+        print("OAuth token endpoint called without JWT")
         return RedirectResponse("/login?failed=1&error=Missing JWT", status_code=303)
 
     try:
-        logger.info("Verifying OAuth JWT token")
+        print("Verifying OAuth JWT token")
         user_data = await verify_oauth_token(jwt)
         
         # Check if user is in allowed list
@@ -155,12 +155,12 @@ async def oauth_token(req, session):
         ]
         
         user_email = user_data.get("email")
-        logger.debug(f"🔧 Debug: Checking access for email: {user_email}")
-        logger.debug(f"🔧 Debug: Allowed employees: {ALLOWED_EMPLOYEES}")
+        print(f"🔧 Debug: Checking access for email: {user_email}")
+        print(f"🔧 Debug: Allowed employees: {ALLOWED_EMPLOYEES}")
         
         if user_email not in ALLOWED_EMPLOYEES:
             logger.warning(f"🚫 Access denied for user: {user_email}")
-            logger.debug(f"🔧 Debug: Email '{user_email}' not in allowed list")
+            print(f"🔧 Debug: Email '{user_email}' not in allowed list")
             
             return RedirectResponse(
                 "/login?failed=1&error=Access denied. Contact admin for access.",
@@ -169,13 +169,13 @@ async def oauth_token(req, session):
         
         # Store user data in session
         session["user"] = user_data
-        logger.info(f"✅ FastHTML session set for user: {user_email}")
-        logger.debug(f"🔧 Debug: Session data keys: {list(session.keys())}")
+        print(f"✅ FastHTML session set for user: {user_email}")
+        print(f"🔧 Debug: Session data keys: {list(session.keys())}")
                 
         return RedirectResponse("/", status_code=303)
     
     except Exception as e:
-        logger.error(f"OAuth token verification failed: {str(e)}")
+        print(f"OAuth token verification failed: {str(e)}")
         return RedirectResponse(
             f"/login?failed=1&error={urllib.parse.quote(str(e))}",
             status_code=303,
